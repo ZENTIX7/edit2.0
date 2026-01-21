@@ -26,14 +26,20 @@ class TweakResult:
 
 
 class AnimatedButton(QtWidgets.QPushButton):
-    def __init__(self, text: str, accent: QtGui.QColor, parent: QtWidgets.QWidget | None = None) -> None:
+    def __init__(
+        self,
+        text: str,
+        accent: QtGui.QColor,
+        parent: QtWidgets.QWidget | None = None,
+    ) -> None:
         super().__init__(text, parent)
         self._base_color = accent
         self._hover_color = accent.lighter(120)
         self._press_color = accent.darker(115)
         self._current_color = accent
-        self._animation = QtCore.QPropertyAnimation(self, b"color")
+        self._animation = QtCore.QVariantAnimation(self)
         self._animation.setDuration(180)
+        self._animation.valueChanged.connect(self._on_color_update)
         self.setCursor(QtCore.Qt.PointingHandCursor)
         self.setFixedHeight(36)
         self.setStyleSheet(self._style_for_color(self._current_color))
@@ -70,7 +76,6 @@ class AnimatedButton(QtWidgets.QPushButton):
         self._animation.stop()
         self._animation.setStartValue(self._current_color)
         self._animation.setEndValue(color)
-        self._animation.valueChanged.connect(self._on_color_update)
         self._animation.start()
 
     def _on_color_update(self, color: QtGui.QColor) -> None:
@@ -366,6 +371,11 @@ class MainWindow(QtWidgets.QWidget):
 
         right_panel = self._build_status_panel()
         content.addWidget(right_panel, 0)
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        self._container.setGeometry(10, 10, self.width() - 20, self.height() - 20)
+        self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
+        super().showEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         self._container.setGeometry(10, 10, self.width() - 20, self.height() - 20)
