@@ -14,6 +14,7 @@ from tweaks import (
     TWEAKS,
     Tweak,
     apply_tweak,
+    clean_recycle_bin,
     clean_temp_files,
     cleanup_roblox,
     create_backup_dir,
@@ -859,7 +860,10 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(10)
 
         title = QtWidgets.QLabel("Categories")
-        title.setStyleSheet("color: #d7ddf1; font-weight: 600;")
+        title.setStyleSheet(
+            "color: #d7ddf1; font-weight: 600; background: transparent; border: none;"
+        )
+        title.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title)
 
         self._category_buttons: dict[str, QtWidgets.QPushButton] = {}
@@ -927,7 +931,7 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(8)
 
         icon = QtWidgets.QLabel("🔍")
-        icon.setStyleSheet("color: #9aa3b7; font-size: 14px;")
+        icon.setStyleSheet("color: #9aa3b7; font-size: 14px; background: transparent;")
         layout.addWidget(icon)
 
         self._search = QtWidgets.QLineEdit()
@@ -952,6 +956,13 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         layout.addLayout(self._build_header())
+        self._network_header = self._build_section_header(
+            title="Network Maintenance",
+            subtitle="Flush DNS, release/renew IP, reset Winsock (reboot required).",
+            icon="🌐",
+        )
+        self._network_header.hide()
+        layout.addWidget(self._network_header)
         layout.addWidget(self._build_search())
         layout.addWidget(self._build_tweak_list(), 1)
         return page
@@ -1022,8 +1033,71 @@ class MainWindow(QtWidgets.QWidget):
                 action=self._handle_clean_roblox,
             )
         )
+        layout.addWidget(
+            self._action_card(
+                title="Empty Recycle Bin",
+                description="Permanently delete items from the Recycle Bin.",
+                action=self._handle_empty_recycle_bin,
+            )
+        )
         layout.addStretch()
         return page
+
+    def _build_section_header(self, title: str, subtitle: str, icon: str) -> QtWidgets.QFrame:
+        frame = QtWidgets.QFrame()
+        frame.setStyleSheet("QFrame { background: transparent; }")
+        layout = QtWidgets.QVBoxLayout(frame)
+        layout.setContentsMargins(6, 8, 6, 6)
+        layout.setSpacing(8)
+
+        row = QtWidgets.QHBoxLayout()
+        row.setSpacing(10)
+
+        icon_label = QtWidgets.QLabel(icon)
+        icon_label.setFixedSize(28, 28)
+        icon_label.setAlignment(QtCore.Qt.AlignCenter)
+        icon_label.setStyleSheet(
+            "QLabel {"
+            "color: rgba(226, 232, 240, 0.8);"
+            "background: rgba(125, 92, 255, 0.15);"
+            "border-radius: 14px;"
+            "}"
+        )
+        row.addWidget(icon_label)
+
+        text_col = QtWidgets.QVBoxLayout()
+        header_title = QtWidgets.QLabel(title)
+        header_title.setObjectName("headerTitle")
+        header_title.setStyleSheet(
+            "QLabel#headerTitle {"
+            "color: #eef2ff;"
+            "font-size: 17px;"
+            "font-weight: 600;"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
+        header_subtitle = QtWidgets.QLabel(subtitle)
+        header_subtitle.setObjectName("headerSubtitle")
+        header_subtitle.setStyleSheet(
+            "QLabel#headerSubtitle {"
+            "color: #9aa3b7;"
+            "font-size: 12px;"
+            "background: transparent;"
+            "border: none;"
+            "}"
+        )
+        header_subtitle.setWordWrap(True)
+        text_col.addWidget(header_title)
+        text_col.addWidget(header_subtitle)
+        row.addLayout(text_col, 1)
+        layout.addLayout(row)
+
+        divider = QtWidgets.QFrame()
+        divider.setFixedHeight(1)
+        divider.setStyleSheet("background: rgba(255, 255, 255, 0.06);")
+        layout.addWidget(divider)
+        return frame
 
     def _action_card(self, title: str, description: str, action: Callable[[], None]) -> QtWidgets.QFrame:
         card = QtWidgets.QFrame()
@@ -1264,6 +1338,7 @@ class MainWindow(QtWidgets.QWidget):
         return items
 
     def _filter_tweaks(self) -> None:
+        self._update_network_header_visibility()
         self._render_tweaks()
 
     def _set_category(self, category: str) -> None:
@@ -1282,7 +1357,16 @@ class MainWindow(QtWidgets.QWidget):
             return
 
         self._animate_page_switch(self._tweaks_page, force=True)
+        self._update_network_header_visibility()
         self._render_tweaks()
+
+    def _update_network_header_visibility(self) -> None:
+        if not hasattr(self, "_network_header"):
+            return
+        show_header = self._active_category in ("All", "Network")
+        if self._search.text().strip():
+            show_header = False
+        self._network_header.setVisible(show_header)
 
     def _animate_page_switch(self, target: QtWidgets.QWidget, *, force: bool = False) -> None:
         if self._page_stack.currentWidget() is target and not force:
@@ -1412,6 +1496,15 @@ class MainWindow(QtWidgets.QWidget):
             return "Cleanup complete. If you still have issues, restart your PC and sign in again."
 
         self._start_task(task, success_tone="neutral")
+
+    def _handle_empty_recycle_bin(self) -> None:
+        self._toast_manager.show_toast("Work in progress...", tone="neutral")
+
+        def task() -> str:
+            clean_recycle_bin()
+            return "Recycle Bin emptied."
+
+        self._start_task(task, success_tone="success")
 
     def _pick_main_color(self) -> None:
         dialog = ColorPickerDialog("Main color", self._main_color, self)

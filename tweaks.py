@@ -137,6 +137,18 @@ def cleanup_roblox() -> CleanupResult:
     return CleanupResult(deleted=deleted, skipped=skipped, errors=errors)
 
 
+def clean_recycle_bin() -> None:
+    run_command(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            "Clear-RecycleBin -Force",
+        ],
+        "Empty Recycle Bin",
+    )
+
+
 def iter_categories(tweaks: Iterable[Tweak]) -> list[str]:
     categories = {tweak.category for tweak in tweaks}
     return [
