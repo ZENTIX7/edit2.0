@@ -330,11 +330,15 @@ class MainWindow(QtWidgets.QWidget):
         self._toast_manager.set_accent(self._accent)
 
         self._build_ui()
+        outer = QtWidgets.QVBoxLayout(self)
+        outer.setContentsMargins(10, 10, 10, 10)
+        outer.addWidget(self._container)
         self._start_intro_animation()
 
     def _build_ui(self) -> None:
         self._container = QtWidgets.QFrame(self)
         self._container.setObjectName("container")
+        self._container.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self._container.setStyleSheet(
             "#container {"
             "background-color: rgba(15, 17, 22, 0.96);"
@@ -373,12 +377,10 @@ class MainWindow(QtWidgets.QWidget):
         content.addWidget(right_panel, 0)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
-        self._container.setGeometry(10, 10, self.width() - 20, self.height() - 20)
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         super().showEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
-        self._container.setGeometry(10, 10, self.width() - 20, self.height() - 20)
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         self._toast_manager._reposition_toasts()
         super().resizeEvent(event)
