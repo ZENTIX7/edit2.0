@@ -39,9 +39,10 @@ def main() -> None:
             print(f"Screen: {screen_name}")
         app.setApplicationName(APP_TITLE)
         window = MainWindow()
-        window.show()
-        window.raise_()
-        window.activateWindow()
+    window.show()
+    window.showNormal()
+    window.raise_()
+    window.activateWindow()
         window.setWindowState(
             (window.windowState() & ~QtCore.Qt.WindowMinimized) | QtCore.Qt.WindowActive
         )

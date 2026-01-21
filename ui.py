@@ -394,6 +394,7 @@ class MainWindow(QtWidgets.QWidget):
             y = max(available.y(), min(y, available.y() + available.height() - size.height()))
             self.move(x, y)
         print("[UI] showEvent: visible, windowState=", self.windowState().value)
+        QtCore.QTimer.singleShot(150, self._force_activate)
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         super().showEvent(event)
 
@@ -414,6 +415,11 @@ class MainWindow(QtWidgets.QWidget):
         if event.type() == QtCore.QEvent.WindowStateChange:
             print("[UI] changeEvent: state=", self.windowState().value)
         super().changeEvent(event)
+
+    def _force_activate(self) -> None:
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         painter = QtGui.QPainter(self)
@@ -754,18 +760,11 @@ class MainWindow(QtWidgets.QWidget):
                 self._toast_manager.show_toast(str(exc))
 
     def _start_intro_animation(self) -> None:
-        self.setWindowOpacity(0.0)
-        fade = QtCore.QPropertyAnimation(self, b"windowOpacity")
-        fade.setDuration(350)
-        fade.setStartValue(0.0)
-        fade.setEndValue(1.0)
-        fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)
-        fade.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
-
+        self.setWindowOpacity(1.0)
         geo = self.geometry()
-        start_pos = QtCore.QPoint(geo.x(), geo.y() + 30)
+        start_pos = QtCore.QPoint(geo.x(), geo.y() + 20)
         move = QtCore.QPropertyAnimation(self, b"pos")
-        move.setDuration(350)
+        move.setDuration(240)
         move.setStartValue(start_pos)
         move.setEndValue(QtCore.QPoint(geo.x(), geo.y()))
         move.setEasingCurve(QtCore.QEasingCurve.OutCubic)
