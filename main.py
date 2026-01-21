@@ -16,6 +16,17 @@ def main() -> None:
         sys.exit(1)
 
     app = QtWidgets.QApplication(sys.argv)
+    screen = app.primaryScreen()
+    screen_name = screen.name() if screen else "unknown"
+    screen_geo = screen.availableGeometry() if screen else None
+    print("GUI framework: PySide6 (Qt)")
+    if screen_geo:
+        print(
+            f"Screen: {screen_name} {screen_geo.width()}x{screen_geo.height()} "
+            f"at ({screen_geo.x()}, {screen_geo.y()})"
+        )
+    else:
+        print(f"Screen: {screen_name}")
     app.setApplicationName(APP_TITLE)
     window = MainWindow()
     window.show()

@@ -318,7 +318,7 @@ class MainWindow(QtWidgets.QWidget):
             | QtCore.Qt.WindowSystemMenuHint
             | QtCore.Qt.WindowMinimizeButtonHint
         )
-        self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+        self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
         self.resize(1100, 720)
 
         self._accent = QtGui.QColor("#7d5cff")
@@ -355,6 +355,10 @@ class MainWindow(QtWidgets.QWidget):
         self._blob = AnimatedBlob(self._container)
         self._blob.lower()
 
+        hello = QtWidgets.QLabel("Hello")
+        hello.setStyleSheet("color: #ffffff; font-size: 13px; font-weight: 600;")
+        layout.addWidget(hello, alignment=QtCore.Qt.AlignLeft)
+
         self._title_bar = self._build_title_bar()
         layout.addWidget(self._title_bar)
 
@@ -377,6 +381,13 @@ class MainWindow(QtWidgets.QWidget):
         content.addWidget(right_panel, 0)
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
+        screen = QtWidgets.QApplication.primaryScreen()
+        if screen:
+            available = screen.availableGeometry()
+            size = self.size()
+            x = available.x() + (available.width() - size.width()) // 2
+            y = available.y() + (available.height() - size.height()) // 2
+            self.move(max(x, 0), max(y, 0))
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         super().showEvent(event)
 
