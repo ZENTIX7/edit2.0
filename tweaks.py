@@ -1,7 +1,9 @@
 import ctypes
 import datetime as dt
 import os
+import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -19,6 +21,13 @@ class Tweak:
     parent_keys: list[str] = field(default_factory=list)
     explorer_notice: bool = False
     post_message: str | None = None
+
+
+@dataclass(frozen=True)
+class CleanupResult:
+    deleted: int
+    skipped: int
+    errors: int
 
 
 def is_windows() -> bool:
@@ -74,6 +83,58 @@ def apply_tweak(tweak: Tweak, backup_dir: Path, backed_up: set[str]) -> None:
         backup_registry_key(parent_key, backup_dir, backed_up)
     for command in tweak.commands:
         run_command(command, tweak.label)
+
+
+def _safe_remove(path: Path) -> bool:
+    try:
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=False)
+        else:
+            path.unlink(missing_ok=True)
+        return True
+    except Exception:
+        return False
+
+
+def clean_temp_files() -> CleanupResult:
+    temp_dir = Path(tempfile.gettempdir())
+    deleted = 0
+    skipped = 0
+    errors = 0
+    for entry in temp_dir.iterdir():
+        if _safe_remove(entry):
+            deleted += 1
+        else:
+            skipped += 1
+            errors += 1
+    return CleanupResult(deleted=deleted, skipped=skipped, errors=errors)
+
+
+def cleanup_roblox() -> CleanupResult:
+    deleted = 0
+    skipped = 0
+    errors = 0
+
+    local_app = os.environ.get("LOCALAPPDATA")
+    if local_app:
+        roblox_dir = Path(local_app) / "Roblox"
+        if roblox_dir.exists():
+            if _safe_remove(roblox_dir):
+                deleted += 1
+            else:
+                skipped += 1
+                errors += 1
+
+    temp_dir = Path(tempfile.gettempdir())
+    for entry in temp_dir.iterdir():
+        if "roblox" in entry.name.lower():
+            if _safe_remove(entry):
+                deleted += 1
+            else:
+                skipped += 1
+                errors += 1
+
+    return CleanupResult(deleted=deleted, skipped=skipped, errors=errors)
 
 
 def iter_categories(tweaks: Iterable[Tweak]) -> list[str]:
