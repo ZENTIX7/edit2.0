@@ -390,12 +390,16 @@ class TweakCard(QtWidgets.QFrame):
 
         title = QtWidgets.QLabel(tweak.label)
         title.setStyleSheet(
-            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent;"
+            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent; border: none;"
         )
+        title.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title)
 
         desc = QtWidgets.QLabel(tweak.description)
-        desc.setStyleSheet("color: #9aa3b7; font-size: 12px; background: transparent;")
+        desc.setStyleSheet(
+            "color: #9aa3b7; font-size: 12px; background: transparent; border: none;"
+        )
+        desc.setFrameShape(QtWidgets.QFrame.NoFrame)
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -1037,12 +1041,16 @@ class MainWindow(QtWidgets.QWidget):
 
         title_label = QtWidgets.QLabel(title)
         title_label.setStyleSheet(
-            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent;"
+            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent; border: none;"
         )
+        title_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title_label)
 
         desc = QtWidgets.QLabel(description)
-        desc.setStyleSheet("color: #9aa3b7; font-size: 12px; background: transparent;")
+        desc.setStyleSheet(
+            "color: #9aa3b7; font-size: 12px; background: transparent; border: none;"
+        )
+        desc.setFrameShape(QtWidgets.QFrame.NoFrame)
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -1105,7 +1113,7 @@ class MainWindow(QtWidgets.QWidget):
         theme_layout.addLayout(speed_row)
 
         self._speed_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self._speed_slider.setRange(50, 200)
+        self._speed_slider.setRange(50, 400)
         self._speed_slider.setValue(int(self._animation.speed * 100))
         self._speed_slider.setStyleSheet(
             "QSlider::groove:horizontal {"
@@ -1135,7 +1143,7 @@ class MainWindow(QtWidgets.QWidget):
         theme_layout.addLayout(transition_row)
 
         self._transition_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self._transition_slider.setRange(70, 200)
+        self._transition_slider.setRange(70, 400)
         self._transition_slider.setValue(int(self._animation.transition_speed * 100))
         self._transition_slider.setStyleSheet(
             "QSlider::groove:horizontal {"
@@ -1273,17 +1281,18 @@ class MainWindow(QtWidgets.QWidget):
             self._animate_page_switch(self._style_page)
             return
 
-        self._animate_page_switch(self._tweaks_page)
+        self._animate_page_switch(self._tweaks_page, force=True)
         self._render_tweaks()
 
-    def _animate_page_switch(self, target: QtWidgets.QWidget) -> None:
-        if self._page_stack.currentWidget() is target:
+    def _animate_page_switch(self, target: QtWidgets.QWidget, *, force: bool = False) -> None:
+        if self._page_stack.currentWidget() is target and not force:
             return
         effect = QtWidgets.QGraphicsOpacityEffect(target)
         target.setGraphicsEffect(effect)
         effect.setOpacity(0.0)
 
-        self._page_stack.setCurrentWidget(target)
+        if self._page_stack.currentWidget() is not target:
+            self._page_stack.setCurrentWidget(target)
         target_pos = target.pos()
         target.move(target_pos + QtCore.QPoint(0, 12))
 
