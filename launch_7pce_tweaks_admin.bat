@@ -29,4 +29,4 @@ if %errorlevel% neq 0 (
     )
 )
 
-powershell -NoProfile -Command "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\"' -Verb RunAs } else { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\"' }"
+powershell -NoProfile -Command "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\" > \"%SCRIPT_DIR%launch_stdout.log\" 2> \"%SCRIPT_DIR%launch_stderr.log\"' -Verb RunAs } else { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\" > \"%SCRIPT_DIR%launch_stdout.log\" 2> \"%SCRIPT_DIR%launch_stderr.log\"' }"
