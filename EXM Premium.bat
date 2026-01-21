@@ -19,11 +19,11 @@ echo Checking for Administrative Privelages...
 rmdir %SystemDrive%\Windows\system32\adminrightstest >nul 2>&1
 mkdir %SystemDrive%\Windows\system32\adminrightstest >nul 2>&1
 if %errorlevel% neq 0 (
-echo                Run Exm Premium Utility as Admin%
+echo                Run 7pce Tweaks Premium Utility as Admin%
 powershell -NoProfile -NonInteractive -Command start -verb runas "'%~s0'" >nul 2>&1
 if !errorlevel! equ 0 exit /b
 echo.
-echo             Exm is not running as Admin!
+echo             7pce is not running as Admin!
 echo    Some optimizations won't work. Continue anyway?
 echo.
 choice /c:"CQ" /n /m "%BS%               [C] Continue  [Q] Quit" & if !errorlevel! equ 2 exit /b
@@ -86,7 +86,7 @@ goto restorepoint
 
 :rON
 chcp 437 >nul 2>&1
-powershell -ExecutionPolicy Bypass -Command "Checkpoint-Computer -Description 'Exm Premium Restore Point' -RestorePointType 'MODIFY_SETTINGS'" 
+powershell -ExecutionPolicy Bypass -Command "Checkpoint-Computer -Description '7pce Tweaks Premium Restore Point' -RestorePointType 'MODIFY_SETTINGS'" 
 chcp 65001 >nul 2>&1
 echo.
 echo.
@@ -143,12 +143,12 @@ echo. ════════════════════════�
 
 chcp 437 >nul 2>&1
 curl -g -k -L -# -o "%temp%\nvidiaProfileInspector.zip" "https://github.com/Orbmu2k/nvidiaProfileInspector/releases/latest/download/nvidiaProfileInspector.zip" 
-powershell -NoProfile Expand-Archive '%temp%\nvidiaProfileInspector.zip' -DestinationPath 'C:\Exm\NvidiaProfileInspector\'
+powershell -NoProfile Expand-Archive '%temp%\nvidiaProfileInspector.zip' -DestinationPath 'C:\7pce\NvidiaProfileInspector\'
 cls
 chcp 65001 >nul 2>&1 
 
 
-IF EXIST "C:\exm\NvidiaProfileInspector\nvidiaProfilelnspector.exe.config" (
+IF EXIST "C:\7pce\NvidiaProfileInspector\nvidiaProfilelnspector.exe.config" (
     goto menu
 ) ELSE (
 goto menu
@@ -202,7 +202,7 @@ echo.       %b%║%w%                                   %p%[16]%w% Mouse and Key
 echo.       %b%║%w%                                                                                                                                                  %b%║
 echo.       %b%║%w%                                   %p%[19]%w% Additonal Tweaks       %p%[20]%w% Debloat             %p%[21]%w% Optimize Games                                       %b%║
 echo.       %b%║%w%                                                                                                                                                  %b%║
-echo.       %b%║%w%                                   %p%[E]%w% Exm Socials             %p%[F]%w% Reverts/fixes        %p%[R]%w% Review                                                %b%║
+echo.       %b%║%w%                                   %p%[E]%w% 7pce Tweaks Socials             %p%[F]%w% Reverts/fixes        %p%[R]%w% Review                                                %b%║
 echo.       %b%║%w%                                                                                                                                                  %b%║ 
 echo.       %b%║%w%                                                                                                                                                  %b%║
 echo.       %b%║%w%                                   %p%%w%                            %p%[X]%w% Exit      %p%%w%                                                                     %b%║
@@ -211,9 +211,8 @@ echo.       %b%║════════════════════�
 echo.       %b%║%w%                                                                                                                                                  %b%║
 echo.       %b%║%w%                                                      %p%[S]%w% Use a restore point (revert all tweaks)                                                 %b%║
 echo.       %b%║%w%                                                                                                                                                  %b%║
-echo.       %b%║%w%                                              Made by exm * posted by illusion   * @exm4L on twitter                                              %b%║
+echo.       %b%║%w%                                              Made by 7pce Tweaks * posted by illusion   * @7pcetweaks on twitter                                              %b%║
 echo.       %b%║%w%                                                                                                                                                  %b%║
-echo.       %b%║%w%                                                               discord.gg/XJP5Q2z5UZ                                                              %b%║
 echo.       %b%╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 echo.
 echo.
@@ -249,7 +248,7 @@ if /i %input% == S goto restore
 if /i %input% == X goto exit
 if /i %input% == F goto Fixes
 if /i %input% == R goto site
-if /i %input% == E goto exm
+if /i %input% == E goto 7pce
 
 ) ELSE (
 echo Invalid Input & goto MisspellRedirect
@@ -334,7 +333,7 @@ cls
 goto menu
 
 :exit
-del /s /q C:\exm 
+del /s /q C:\7pce 
 cls
 echo.
 echo.
@@ -349,7 +348,7 @@ exit
 
 
 :site
-start https://exmtweaks.com/review/fF6DJ
+start https://7pcetweaks.com/review/fF6DJ
 echo.
 echo.
 echo.
@@ -466,7 +465,7 @@ cls
 goto :real
 
 :fnset
-start C:\exm\FortniteSettings\Fortnite_Settings.exe
+start C:\7pce\FortniteSettings\Fortnite_Settings.exe
 
 echo.
 echo.
@@ -1096,9 +1095,9 @@ goto :menu
 
 :wub
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Select disable updates in wub, press ok to open it', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Select disable updates in wub, press ok to open it', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
-start C:\exm\WindowsUpdateBlocker\Wub.exe
+start C:\7pce\WindowsUpdateBlocker\Wub.exe
 echo.
 
 echo.
@@ -1117,8 +1116,8 @@ goto :wsettings
 
 
 
-:exm
-start https://linktr.ee/exmfn
+:7pce
+start https://linktr.ee/7pcetweaks
 cls
 goto menu
 
@@ -2252,7 +2251,7 @@ echo.
 echo  Sound and Recording Settings
 echo.
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Disable everything in Playback and recording EXCEPT YOUR HEADPHONES AND MIC', 'Exm Tweaking Utility', 'Ok' , [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('Disable everything in Playback and recording EXCEPT YOUR HEADPHONES AND MIC', '7pce Tweaks Utility', 'Ok' , [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 control mmsys.cpl sounds
 echo.
@@ -2584,9 +2583,9 @@ goto :debloat
 
 :autoruns
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('go to the LOGON section, disable all services except: antivirus, cmd.exe, and the n/a services', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('go to the LOGON section, disable all services except: antivirus, cmd.exe, and the n/a services', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
-start C:\exm\Autoruns\autoruns.exe
+start C:\7pce\Autoruns\autoruns.exe
 echo.
 echo.
 echo.
@@ -2814,7 +2813,7 @@ goto :visual
 :performance
 cls
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('select adjust for best performanceAnd select Show Thumbnails Instead of icans, smooth edges on screen fonts and press apply', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('select adjust for best performanceAnd select Show Thumbnails Instead of icans, smooth edges on screen fonts and press apply', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 %windir%\system32\SystemPropertiesPerformance.exe
 echo.
@@ -3135,7 +3134,7 @@ goto :gpu
 :nvgpu
 cls
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN NVIDIA GPU', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN NVIDIA GPU', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 cls
 
@@ -3362,7 +3361,7 @@ cls
 goto :nv
 
 :nv3
-start "" /wait "C:\exm\NvidiaProfileInspector\nvidiaProfileInspector.exe" "C:\exm\NvidiaProfileInspector\Exm_Premium_Profile_V4.nip"
+start "" /wait "C:\7pce\NvidiaProfileInspector\nvidiaProfileInspector.exe" "C:\7pce\NvidiaProfileInspector\7pce_Tweaks_Premium_Profile_V4.nip"
 
 
 echo.
@@ -3660,7 +3659,7 @@ goto :nv
 :amdgpu
 cls
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN AMD GPU', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN AMD GPU', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 echo Only do these on an amd gpu, Type "yes" if you have one, "no" if you dont
 set /p input=:
@@ -4017,7 +4016,7 @@ goto :gpu
 
 :intelgpu
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN INTEL GPU', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE AN INTEL GPU', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 cls
 SET /P AREYOUSURE=Only do these on an INTEL gpu, type yes if you have one, no if you dont (Yes/No)?
@@ -6925,7 +6924,7 @@ echo                           %b%"═══════════════
 echo.                                       Tweaking Power Settings will increase fps, but also slightly increase temps
 echo.
 echo.
-echo.                                         %p%[1]%w% Set Exm Premium Power Plan             %p%[2]%w% Additional Power Tweaks
+echo.                                         %p%[1]%w% Set 7pce Tweaks Premium Power Plan             %p%[2]%w% Additional Power Tweaks
 echo.
 echo.                                         %p%[3]%w% Enable Kboost                          %p%[4]%w% Disable Storage Power Managment
 echo.
@@ -7330,9 +7329,9 @@ goto :power
 
 :plan
 
-echo Applying Exm Premium power plan
+echo Applying 7pce Tweaks Premium power plan
 
-powercfg -import "C:\exm\PowerPlan\Exm_Premium_Power_Plan_V3.pow"
+powercfg -import "C:\7pce\PowerPlan\7pce_Tweaks_Premium_Power_Plan_V3.pow"
 
 powercfg.cpl
 
@@ -7895,7 +7894,7 @@ goto :Menu
 :netmenu
 cls
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE ON ETHERNET, WIFI TWEAKS COMING IN 1.0', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE ON ETHERNET, WIFI TWEAKS COMING IN 1.0', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 echo
 echo.
@@ -7972,7 +7971,7 @@ goto :net
 
 :n15
 chcp 437 > nul
-powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE FAST DOWNLOAD SPEEDS, PROBABLY OVER 500+, IT MAKES YOU DOWNLOADS SPEEDS SLOWER, BUT SIGNIFICANTLY DECREASES BUFFERBLOAT. ITS WORTH IT IF YOU HAVE F', 'Exm Tweaking Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
+powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('ONLY DO THESE IF YOU HAVE FAST DOWNLOAD SPEEDS, PROBABLY OVER 500+, IT MAKES YOU DOWNLOADS SPEEDS SLOWER, BUT SIGNIFICANTLY DECREASES BUFFERBLOAT. ITS WORTH IT IF YOU HAVE F', '7pce Tweaks Utility', 'Ok', [System.Windows.Forms.MessageBoxIcon]::Information);}"
 chcp 65001 > nul
 chcp 65001 > nul
 Echo.
