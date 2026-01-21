@@ -1,40 +1,144 @@
+import ctypes
+import datetime as dt
 import os
 import subprocess
 import sys
 import tkinter as tk
-from tkinter import colorchooser, messagebox, ttk
+from pathlib import Path
+from tkinter import colorchooser, filedialog, messagebox, ttk
 
 APP_TITLE = "7pce Tweaks Utility"
+BACKUP_ROOT = Path("backups")
 
-TWEAKS = [
+
+def is_windows() -> bool:
+    return os.name == "nt"
+
+
+def is_admin() -> bool:
+    if not is_windows():
+        return False
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin() != 0
+    except AttributeError:
+        return False
+
+
+def run_command(command: list[str], description: str) -> None:
+    print(f"[RUN] {description}")
+    print(f"      {' '.join(command)}")
+    result = subprocess.run(command, capture_output=True, text=True, shell=False)
+    if result.returncode != 0:
+        stderr = result.stderr.strip() or "(no error output)"
+        raise RuntimeError(f"{description} failed: {stderr}")
+
+
+def create_backup_dir() -> Path:
+    timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_dir = BACKUP_ROOT / timestamp
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    return backup_dir
+
+
+def backup_registry_key(parent_key: str, backup_dir: Path, backed_up: set[str]) -> None:
+    if parent_key in backed_up:
+        return
+    safe_name = parent_key.replace("\\", "_").replace("/", "_")
+    backup_file = backup_dir / f"{safe_name}.reg"
+    run_command(
+        ["reg", "export", parent_key, str(backup_file), "/y"],
+        f"Backup registry key {parent_key}",
+    )
+    backed_up.add(parent_key)
+
+
+def restore_backup_file(path: Path) -> None:
+    run_command(["reg", "import", str(path)], f"Restore registry backup {path}")
+
+
+def restart_explorer() -> None:
+    run_command(["taskkill", "/f", "/im", "explorer.exe"], "Stop Explorer")
+    run_command(["cmd", "/c", "start", "explorer.exe"], "Start Explorer")
+
+
+TWEAKS: list[dict] = [
     {
-        "label": "Enable ANSI Colors",
-        "description": "Turns on ANSI escape sequences for the Windows console.",
+        "label": "Disable Mouse Acceleration",
+        "description": "Turn off Enhance Pointer Precision.",
+        "parent_keys": ["HKCU\\Control Panel\\Mouse"],
         "commands": [
             [
                 "reg",
                 "add",
-                "HKCU\\CONSOLE",
+                "HKCU\\Control Panel\\Mouse",
                 "/v",
-                "VirtualTerminalLevel",
+                "MouseSpeed",
                 "/t",
-                "REG_DWORD",
+                "REG_SZ",
                 "/d",
-                "1",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Control Panel\\Mouse",
+                "/v",
+                "MouseThreshold1",
+                "/t",
+                "REG_SZ",
+                "/d",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Control Panel\\Mouse",
+                "/v",
+                "MouseThreshold2",
+                "/t",
+                "REG_SZ",
+                "/d",
+                "0",
+                "/f",
+            ],
+        ],
+        "explorer_notice": False,
+    },
+    {
+        "label": "Reduce Menu Show Delay",
+        "description": "Make menus appear instantly.",
+        "parent_keys": ["HKCU\\Control Panel\\Desktop"],
+        "commands": [
+            [
+                "reg",
+                "add",
+                "HKCU\\Control Panel\\Desktop",
+                "/v",
+                "MenuShowDelay",
+                "/t",
+                "REG_SZ",
+                "/d",
+                "0",
                 "/f",
             ]
         ],
+        "explorer_notice": True,
     },
     {
-        "label": "Disable UAC",
-        "description": "Disables User Account Control (requires reboot).",
+        "label": "Disable Taskbar Animations",
+        "description": "Turn off taskbar animation effects.",
+        "parent_keys": [
+            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced"
+        ],
         "commands": [
             [
                 "reg",
                 "add",
-                "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
                 "/v",
-                "EnableLUA",
+                "TaskbarAnimations",
                 "/t",
                 "REG_DWORD",
                 "/d",
@@ -42,24 +146,133 @@ TWEAKS = [
                 "/f",
             ]
         ],
+        "explorer_notice": True,
     },
     {
-        "label": "Create Restore Point",
-        "description": "Creates a system restore point before applying other tweaks.",
+        "label": "Disable Transparency Effects",
+        "description": "Disable acrylic transparency in Windows.",
+        "parent_keys": [
+            "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"
+        ],
         "commands": [
             [
-                "powershell",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                "Checkpoint-Computer -Description '7pce Tweaks Restore Point' -RestorePointType 'MODIFY_SETTINGS'",
+                "reg",
+                "add",
+                "HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize",
+                "/v",
+                "EnableTransparency",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
             ]
         ],
+        "explorer_notice": True,
     },
     {
-        "label": "Open System Restore",
-        "description": "Launches the Windows restore UI.",
-        "commands": [["rstrui.exe"]],
+        "label": "Disable Aero Peek",
+        "description": "Disable Windows Aero Peek behavior.",
+        "parent_keys": ["HKCU\\Software\\Microsoft\\Windows\\DWM"],
+        "commands": [
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\DWM",
+                "/v",
+                "EnableAeroPeek",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ]
+        ],
+        "explorer_notice": True,
+    },
+    {
+        "label": "Disable Xbox Game Bar / GameDVR",
+        "description": "Disable Game Bar overlays and background capture.",
+        "parent_keys": [
+            "HKCU\\Software\\Microsoft\\GameBar",
+            "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+        ],
+        "commands": [
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\GameBar",
+                "/v",
+                "AllowAutoGameMode",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\GameBar",
+                "/v",
+                "ShowStartupPanel",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\GameBar",
+                "/v",
+                "UseNexusForGameBarEnabled",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\GameBar",
+                "/v",
+                "GameDVR_Enabled",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ],
+            [
+                "reg",
+                "add",
+                "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\GameDVR",
+                "/v",
+                "AppCaptureEnabled",
+                "/t",
+                "REG_DWORD",
+                "/d",
+                "0",
+                "/f",
+            ],
+        ],
+        "explorer_notice": False,
+    },
+    {
+        "label": "Network Maintenance",
+        "description": "Flush DNS, release/renew IP, reset Winsock (reboot required).",
+        "parent_keys": [],
+        "commands": [
+            ["ipconfig", "/flushdns"],
+            ["ipconfig", "/release"],
+            ["ipconfig", "/renew"],
+            ["netsh", "winsock", "reset"],
+        ],
+        "explorer_notice": False,
+        "post_message": "Winsock reset completed. A reboot is required.",
     },
 ]
 
@@ -68,13 +281,15 @@ class TweaksApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title(APP_TITLE)
-        self.geometry("940x620")
-        self.minsize(900, 580)
+        self.geometry("980x680")
+        self.minsize(940, 620)
         self.configure(bg="#0f1115")
         self.accent = "#7d5cff"
         self.theme_mode = "dark"
         self._header_phase = 0
         self._pulse_direction = 1
+        self._backup_dir = create_backup_dir()
+        self._backed_up_keys: set[str] = set()
         self._build_style()
         self._build_layout()
         self._animate_header()
@@ -82,14 +297,8 @@ class TweaksApp(tk.Tk):
     def _build_style(self) -> None:
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure(
-            "TFrame",
-            background="#0f1115",
-        )
-        style.configure(
-            "Card.TFrame",
-            background="#171a21",
-        )
+        style.configure("TFrame", background="#0f1115")
+        style.configure("Card.TFrame", background="#171a21")
         style.configure(
             "Title.TLabel",
             font=("Segoe UI", 20, "bold"),
@@ -123,14 +332,8 @@ class TweaksApp(tk.Tk):
             borderwidth=0,
             padding=(16, 8),
         )
-        style.map(
-            "Accent.TButton",
-            background=[("active", "#6a49ff")],
-        )
-        style.configure(
-            "TLabel",
-            background="#0f1115",
-        )
+        style.map("Accent.TButton", background=[("active", "#6a49ff")])
+        style.configure("TLabel", background="#0f1115")
         style.configure("TButton", font=("Segoe UI", 10, "bold"))
 
     def _build_layout(self) -> None:
@@ -239,6 +442,15 @@ class TweaksApp(tk.Tk):
             accent_row, text="Pick Color", command=self._pick_accent
         ).pack(side="right")
 
+        restore_row = ttk.Frame(card, style="Card.TFrame")
+        restore_row.pack(fill="x", padx=16, pady=(0, 12))
+        ttk.Label(restore_row, text="Restore", style="CardBody.TLabel").pack(
+            side="left"
+        )
+        ttk.Button(
+            restore_row, text="Import Backup", command=self._restore_from_file
+        ).pack(side="right")
+
         divider = ttk.Separator(card)
         divider.pack(fill="x", padx=16, pady=(4, 12))
 
@@ -258,7 +470,9 @@ class TweaksApp(tk.Tk):
         canvas = tk.Canvas(card, height=140, bg="#171a21", highlightthickness=0)
         canvas.pack(fill="x", padx=16, pady=(0, 16))
         self._animation_canvas = canvas
-        self._animation_dot = canvas.create_oval(10, 40, 50, 80, fill=self.accent, width=0)
+        self._animation_dot = canvas.create_oval(
+            10, 40, 50, 80, fill=self.accent, width=0
+        )
         self._animation_direction = 1
         self._animate_dot()
 
@@ -267,34 +481,53 @@ class TweaksApp(tk.Tk):
         self.progress.start(10)
         self.update_idletasks()
 
-        if os.name != "nt":
+        try:
+            for parent_key in tweak.get("parent_keys", []):
+                backup_registry_key(parent_key, self._backup_dir, self._backed_up_keys)
+
+            for command in tweak.get("commands", []):
+                run_command(command, tweak["label"])
+
             self.progress.stop()
-            self._set_status("This tweak requires Windows.")
-            messagebox.showinfo(
-                APP_TITLE,
-                "Tweaks can only be applied on Windows systems.",
-            )
+            self._set_status(f"{tweak['label']} applied successfully.")
+
+            post_message = tweak.get("post_message")
+            if post_message:
+                messagebox.showinfo(APP_TITLE, post_message)
+
+            if tweak.get("explorer_notice"):
+                self._handle_explorer_notice()
+            else:
+                messagebox.showinfo(APP_TITLE, "Tweak applied successfully.")
+        except RuntimeError as exc:
+            self.progress.stop()
+            self._set_status("Tweak failed. Check permissions.")
+            messagebox.showerror(APP_TITLE, str(exc))
+
+    def _handle_explorer_notice(self) -> None:
+        message = (
+            "Sign out/in or restart Explorer may be required.\n"
+            "Restart Explorer now?"
+        )
+        if messagebox.askyesno(APP_TITLE, message):
+            try:
+                restart_explorer()
+            except RuntimeError as exc:
+                messagebox.showerror(APP_TITLE, str(exc))
+
+    def _restore_from_file(self) -> None:
+        file_path = filedialog.askopenfilename(
+            title="Select registry backup",
+            initialdir=str(BACKUP_ROOT),
+            filetypes=[("Registry Files", "*.reg"), ("All Files", "*")],
+        )
+        if not file_path:
             return
-
-        for command in tweak.get("commands", []):
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                shell=False,
-            )
-            if result.returncode != 0:
-                self.progress.stop()
-                self._set_status("Tweak failed. Check permissions.")
-                messagebox.showerror(
-                    APP_TITLE,
-                    f"Failed to apply {tweak['label']}:\n{result.stderr.strip()}",
-                )
-                return
-
-        self.progress.stop()
-        self._set_status(f"{tweak['label']} applied successfully.")
-        messagebox.showinfo(APP_TITLE, "Tweak applied successfully.")
+        try:
+            restore_backup_file(Path(file_path))
+            messagebox.showinfo(APP_TITLE, "Backup restored successfully.")
+        except RuntimeError as exc:
+            messagebox.showerror(APP_TITLE, str(exc))
 
     def _toggle_theme(self) -> None:
         self.theme_mode = self.theme_var.get()
@@ -352,7 +585,77 @@ class TweaksApp(tk.Tk):
         self.status_label.config(text=message)
 
 
+def run_cli() -> None:
+    print(APP_TITLE)
+    print("=" * len(APP_TITLE))
+    if not is_admin():
+        print("[ERROR] Administrator privileges are required.")
+        sys.exit(1)
+
+    backup_dir = create_backup_dir()
+    backed_up_keys: set[str] = set()
+
+    while True:
+        print("\nSelect a tweak to apply:")
+        for idx, tweak in enumerate(TWEAKS, start=1):
+            print(f"  {idx}. {tweak['label']}")
+        print("  R. Restore from backup (.reg)")
+        print("  Q. Quit")
+
+        choice = input("> ").strip().lower()
+        if choice == "q":
+            break
+        if choice == "r":
+            backup_path = input("Path to .reg backup: ").strip()
+            if backup_path:
+                try:
+                    restore_backup_file(Path(backup_path))
+                    print("Backup restored successfully.")
+                except RuntimeError as exc:
+                    print(f"[ERROR] {exc}")
+            continue
+        if not choice.isdigit():
+            print("Invalid selection.")
+            continue
+        index = int(choice) - 1
+        if index < 0 or index >= len(TWEAKS):
+            print("Invalid selection.")
+            continue
+
+        tweak = TWEAKS[index]
+        try:
+            for parent_key in tweak.get("parent_keys", []):
+                backup_registry_key(parent_key, backup_dir, backed_up_keys)
+            for command in tweak.get("commands", []):
+                run_command(command, tweak["label"])
+            print(f"[OK] {tweak['label']} applied.")
+            if tweak.get("explorer_notice"):
+                print("Sign out/in or restart Explorer may be required.")
+                restart = input("Restart Explorer now? (y/N): ").strip().lower()
+                if restart == "y":
+                    restart_explorer()
+            post_message = tweak.get("post_message")
+            if post_message:
+                print(post_message)
+        except RuntimeError as exc:
+            print(f"[ERROR] {exc}")
+
+    print("\nBackups stored in:", backup_dir)
+
+
 def main() -> None:
+    if not is_windows():
+        print("This tool can only run on Windows.")
+        sys.exit(1)
+
+    if "--cli" in sys.argv:
+        run_cli()
+        return
+
+    if not is_admin():
+        print("Administrator privileges are required.")
+        sys.exit(1)
+
     app = TweaksApp()
     app.mainloop()
 
