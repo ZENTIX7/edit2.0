@@ -18,4 +18,15 @@ if %errorlevel% equ 0 (
     )
 )
 
+%PYTHON_CMD% -m pip show PySide6 >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Installing requirements...
+    %PYTHON_CMD% -m pip install -r "%SCRIPT_DIR%requirements.txt"
+    if %errorlevel% neq 0 (
+        echo Failed to install requirements. Please run: %PYTHON_CMD% -m pip install -r "%SCRIPT_DIR%requirements.txt"
+        pause
+        exit /b 1
+    )
+)
+
 powershell -NoProfile -Command "if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\"' -Verb RunAs } else { Start-Process -FilePath 'cmd.exe' -ArgumentList '/c %PYTHON_CMD% \"%APP_SCRIPT%\"' }"
