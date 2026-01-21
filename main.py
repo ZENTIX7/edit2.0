@@ -1,6 +1,6 @@
 import sys
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from tweaks import APP_TITLE, is_admin, is_windows
 from ui import MainWindow
@@ -30,6 +30,11 @@ def main() -> None:
     app.setApplicationName(APP_TITLE)
     window = MainWindow()
     window.show()
+    window.raise_()
+    window.activateWindow()
+    window.setWindowState(
+        (window.windowState() & ~QtCore.Qt.WindowMinimized) | QtCore.Qt.WindowActive
+    )
     sys.exit(app.exec())
 
 

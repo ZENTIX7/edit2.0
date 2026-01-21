@@ -314,11 +314,14 @@ class MainWindow(QtWidgets.QWidget):
         super().__init__()
         self.setWindowTitle(APP_TITLE)
         self.setWindowFlags(
-            QtCore.Qt.FramelessWindowHint
+            QtCore.Qt.Window
+            | QtCore.Qt.FramelessWindowHint
             | QtCore.Qt.WindowSystemMenuHint
             | QtCore.Qt.WindowMinimizeButtonHint
         )
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground, False)
+        self.setWindowOpacity(1.0)
+        self.setFocusPolicy(QtCore.Qt.StrongFocus)
         self.resize(1100, 720)
 
         self._accent = QtGui.QColor("#7d5cff")
@@ -387,7 +390,10 @@ class MainWindow(QtWidgets.QWidget):
             size = self.size()
             x = available.x() + (available.width() - size.width()) // 2
             y = available.y() + (available.height() - size.height()) // 2
-            self.move(max(x, 0), max(y, 0))
+            x = max(available.x(), min(x, available.x() + available.width() - size.width()))
+            y = max(available.y(), min(y, available.y() + available.height() - size.height()))
+            self.move(x, y)
+        print("[UI] showEvent: visible, windowState=", int(self.windowState()))
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         super().showEvent(event)
 
@@ -395,6 +401,19 @@ class MainWindow(QtWidgets.QWidget):
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         self._toast_manager._reposition_toasts()
         super().resizeEvent(event)
+
+    def hideEvent(self, event: QtGui.QHideEvent) -> None:
+        print("[UI] hideEvent: hidden")
+        super().hideEvent(event)
+
+    def focusInEvent(self, event: QtGui.QFocusEvent) -> None:
+        print("[UI] focusInEvent: focused")
+        super().focusInEvent(event)
+
+    def changeEvent(self, event: QtCore.QEvent) -> None:
+        if event.type() == QtCore.QEvent.WindowStateChange:
+            print("[UI] changeEvent: state=", int(self.windowState()))
+        super().changeEvent(event)
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         painter = QtGui.QPainter(self)
