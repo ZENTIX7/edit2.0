@@ -36,11 +36,15 @@ class TaskResult:
 
 
 class AnimationSettings:
-    def __init__(self, speed: float = 1.0) -> None:
+    def __init__(self, speed: float = 1.0, transition_speed: float = 1.35) -> None:
         self.speed = speed
+        self.transition_speed = transition_speed
 
     def scale(self, ms: int) -> int:
         return max(1, int(ms * self.speed))
+
+    def scale_transition(self, ms: int) -> int:
+        return max(1, int(ms * self.transition_speed))
 
 
 class AnimatedButton(QtWidgets.QPushButton):
@@ -118,14 +122,14 @@ class GlassButton(QtWidgets.QPushButton):
         self.setCursor(QtCore.Qt.PointingHandCursor)
         self.setStyleSheet(
             "QPushButton {"
-            "background-color: rgba(255, 255, 255, 0.08);"
+            "background: transparent;"
             "color: #e3e8f4;"
             "border: none;"
-            "border-radius: 8px;"
+            "border-radius: 10px;"
             "font-size: 14px;"
             "}"
             "QPushButton:hover {"
-            "background-color: rgba(125, 92, 255, 0.4);"
+            "background-color: rgba(125, 92, 255, 0.35);"
             "}"
         )
 
@@ -156,13 +160,19 @@ class ColorButton(QtWidgets.QPushButton):
 
 
 class Toast(QtWidgets.QFrame):
-    def __init__(self, message: str, color: QtGui.QColor, parent: QtWidgets.QWidget) -> None:
+    def __init__(
+        self,
+        message: str,
+        color: QtGui.QColor,
+        icon: str,
+        parent: QtWidgets.QWidget,
+    ) -> None:
         super().__init__(parent)
         self.setAttribute(QtCore.Qt.WA_StyledBackground, True)
         self.setStyleSheet(
             "QFrame {"
-            "background-color: rgba(20, 23, 32, 0.95);"
-            "border-radius: 12px;"
+            "background-color: rgba(18, 20, 30, 0.96);"
+            "border-radius: 14px;"
             "border: 1px solid rgba(255, 255, 255, 0.08);"
             "}"
         )
@@ -170,15 +180,21 @@ class Toast(QtWidgets.QFrame):
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(10)
 
-        dot = QtWidgets.QLabel()
-        dot.setFixedSize(10, 10)
-        dot.setStyleSheet(
-            f"background-color: {color.name()}; border-radius: 5px;"
+        badge = QtWidgets.QLabel(icon)
+        badge.setFixedSize(22, 22)
+        badge.setAlignment(QtCore.Qt.AlignCenter)
+        badge.setStyleSheet(
+            "QLabel {"
+            f"background-color: {color.name()};"
+            "color: #0b0f16;"
+            "border-radius: 11px;"
+            "font-weight: 700;"
+            "}"
         )
-        layout.addWidget(dot)
+        layout.addWidget(badge)
 
         label = QtWidgets.QLabel(message)
-        label.setStyleSheet("color: #e6ecff; font-size: 12px;")
+        label.setStyleSheet("color: #e6ecff; font-size: 12px; background: transparent;")
         label.setWordWrap(True)
         layout.addWidget(label)
 
@@ -207,14 +223,17 @@ class ToastManager(QtCore.QObject):
 
     def show_toast(self, message: str, tone: str = "neutral") -> None:
         color = self._accent
+        icon = "•"
         if tone == "success":
             color = QtGui.QColor("#32d583")
+            icon = "✓"
         elif tone == "error":
             color = QtGui.QColor("#f97066")
+            icon = "!"
         elif tone == "neutral":
             color = QtGui.QColor("#94a3b8")
 
-        toast = Toast(message, color, self._parent)
+        toast = Toast(message, color, icon, self._parent)
         toast.setFixedWidth(320)
         toast.show()
         self._toasts.insert(0, toast)
@@ -222,25 +241,49 @@ class ToastManager(QtCore.QObject):
         self._animate_toast(toast)
 
     def _animate_toast(self, toast: Toast) -> None:
+        start_pos = toast.pos() + QtCore.QPoint(0, -6)
+        toast.move(start_pos)
+
         fade_in = QtCore.QPropertyAnimation(toast, b"windowOpacity")
-        fade_in.setDuration(self._animation.scale(200))
+        fade_in.setDuration(self._animation.scale(220))
         fade_in.setStartValue(0.0)
         fade_in.setEndValue(1.0)
         fade_in.setEasingCurve(QtCore.QEasingCurve.OutCubic)
-        fade_in.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+        slide_in = QtCore.QPropertyAnimation(toast, b"pos")
+        slide_in.setDuration(self._animation.scale(220))
+        slide_in.setStartValue(start_pos)
+        slide_in.setEndValue(start_pos + QtCore.QPoint(0, 6))
+        slide_in.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+
+        group = QtCore.QParallelAnimationGroup(toast)
+        group.addAnimation(fade_in)
+        group.addAnimation(slide_in)
+        group.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
 
         timer = QtCore.QTimer(toast)
         timer.setSingleShot(True)
         timer.timeout.connect(partial(self._fade_out, toast))
-        timer.start(self._animation.scale(3200))
+        timer.start(self._animation.scale(3000))
 
     def _fade_out(self, toast: Toast) -> None:
         fade_out = QtCore.QPropertyAnimation(toast, b"windowOpacity")
-        fade_out.setDuration(self._animation.scale(250))
+        fade_out.setDuration(self._animation.scale(220))
         fade_out.setStartValue(toast.windowOpacity())
         fade_out.setEndValue(0.0)
-        fade_out.finished.connect(partial(self._remove_toast, toast))
-        fade_out.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+        fade_out.setEasingCurve(QtCore.QEasingCurve.InCubic)
+
+        slide_out = QtCore.QPropertyAnimation(toast, b"pos")
+        slide_out.setDuration(self._animation.scale(220))
+        slide_out.setStartValue(toast.pos())
+        slide_out.setEndValue(toast.pos() + QtCore.QPoint(0, -8))
+        slide_out.setEasingCurve(QtCore.QEasingCurve.InCubic)
+
+        group = QtCore.QParallelAnimationGroup(toast)
+        group.addAnimation(fade_out)
+        group.addAnimation(slide_out)
+        group.finished.connect(partial(self._remove_toast, toast))
+        group.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
 
     def _remove_toast(self, toast: Toast) -> None:
         if toast in self._toasts:
@@ -346,11 +389,13 @@ class TweakCard(QtWidgets.QFrame):
         layout.setSpacing(10)
 
         title = QtWidgets.QLabel(tweak.label)
-        title.setStyleSheet("color: #f5f7ff; font-size: 14px; font-weight: 600;")
+        title.setStyleSheet(
+            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent;"
+        )
         layout.addWidget(title)
 
         desc = QtWidgets.QLabel(tweak.description)
-        desc.setStyleSheet("color: #9aa3b7; font-size: 12px;")
+        desc.setStyleSheet("color: #9aa3b7; font-size: 12px; background: transparent;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -991,11 +1036,13 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(10)
 
         title_label = QtWidgets.QLabel(title)
-        title_label.setStyleSheet("color: #f5f7ff; font-size: 14px; font-weight: 600;")
+        title_label.setStyleSheet(
+            "color: #f5f7ff; font-size: 14px; font-weight: 600; background: transparent;"
+        )
         layout.addWidget(title_label)
 
         desc = QtWidgets.QLabel(description)
-        desc.setStyleSheet("color: #9aa3b7; font-size: 12px;")
+        desc.setStyleSheet("color: #9aa3b7; font-size: 12px; background: transparent;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
@@ -1076,6 +1123,36 @@ class MainWindow(QtWidgets.QWidget):
         )
         self._speed_slider.valueChanged.connect(self._update_speed)
         theme_layout.addWidget(self._speed_slider)
+
+        transition_row = QtWidgets.QHBoxLayout()
+        transition_label = QtWidgets.QLabel("Transition speed")
+        transition_label.setStyleSheet("color: #cfd6e6; font-size: 12px;")
+        self._transition_value = QtWidgets.QLabel(f"{self._animation.transition_speed:.1f}x")
+        self._transition_value.setStyleSheet("color: #e6ecff; font-weight: 600;")
+        transition_row.addWidget(transition_label)
+        transition_row.addStretch()
+        transition_row.addWidget(self._transition_value)
+        theme_layout.addLayout(transition_row)
+
+        self._transition_slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self._transition_slider.setRange(70, 200)
+        self._transition_slider.setValue(int(self._animation.transition_speed * 100))
+        self._transition_slider.setStyleSheet(
+            "QSlider::groove:horizontal {"
+            "height: 6px;"
+            "background: rgba(255, 255, 255, 0.15);"
+            "border-radius: 3px;"
+            "}"
+            "QSlider::handle:horizontal {"
+            "width: 16px;"
+            "background: #eef2ff;"
+            "border-radius: 8px;"
+            "margin-top: -5px;"
+            "margin-bottom: -5px;"
+            "}"
+        )
+        self._transition_slider.valueChanged.connect(self._update_transition_speed)
+        theme_layout.addWidget(self._transition_slider)
 
         layout.addWidget(theme_card)
 
@@ -1211,13 +1288,13 @@ class MainWindow(QtWidgets.QWidget):
         target.move(target_pos + QtCore.QPoint(0, 12))
 
         fade = QtCore.QPropertyAnimation(effect, b"opacity")
-        fade.setDuration(self._animation.scale(220))
+        fade.setDuration(self._animation.scale_transition(260))
         fade.setStartValue(0.0)
         fade.setEndValue(1.0)
         fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)
 
         slide = QtCore.QPropertyAnimation(target, b"pos")
-        slide.setDuration(self._animation.scale(220))
+        slide.setDuration(self._animation.scale_transition(260))
         slide.setStartValue(target.pos())
         slide.setEndValue(target_pos)
         slide.setEasingCurve(QtCore.QEasingCurve.OutCubic)
@@ -1348,6 +1425,11 @@ class MainWindow(QtWidgets.QWidget):
         self._animation.speed = speed
         self._speed_value.setText(f"{speed:.1f}x")
 
+    def _update_transition_speed(self, value: int) -> None:
+        speed = value / 100
+        self._animation.transition_speed = speed
+        self._transition_value.setText(f"{speed:.1f}x")
+
     def _save_preset(self) -> None:
         name = self._preset_name.text().strip()
         if not name:
@@ -1358,6 +1440,7 @@ class MainWindow(QtWidgets.QWidget):
             main_color=self._main_color.name(),
             glow_color=self._accent.name(),
             animation_speed=self._animation.speed,
+            transition_speed=self._animation.transition_speed,
         )
         self._presets = [p for p in self._presets if p.name.lower() != name.lower()]
         self._presets.append(preset)
@@ -1370,8 +1453,11 @@ class MainWindow(QtWidgets.QWidget):
         self._main_color = QtGui.QColor(preset.main_color)
         self._accent = QtGui.QColor(preset.glow_color)
         self._animation.speed = preset.animation_speed
+        self._animation.transition_speed = preset.transition_speed
         self._speed_slider.setValue(int(self._animation.speed * 100))
         self._speed_value.setText(f"{self._animation.speed:.1f}x")
+        self._transition_slider.setValue(int(self._animation.transition_speed * 100))
+        self._transition_value.setText(f"{self._animation.transition_speed:.1f}x")
         self._main_color_button.set_color(self._main_color)
         self._glow_color_button.set_color(self._accent)
         self._toast_manager.set_accent(self._accent)

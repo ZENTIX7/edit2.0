@@ -12,6 +12,7 @@ class ThemePreset:
     main_color: str
     glow_color: str
     animation_speed: float
+    transition_speed: float
 
 
 def presets_path() -> Path:
@@ -40,6 +41,7 @@ def load_presets() -> list[ThemePreset]:
                     main_color=item["main_color"],
                     glow_color=item["glow_color"],
                     animation_speed=float(item.get("animation_speed", 1.0)),
+                    transition_speed=float(item.get("transition_speed", 1.35)),
                 )
             )
         except KeyError:
