@@ -393,7 +393,7 @@ class MainWindow(QtWidgets.QWidget):
             x = max(available.x(), min(x, available.x() + available.width() - size.width()))
             y = max(available.y(), min(y, available.y() + available.height() - size.height()))
             self.move(x, y)
-        print("[UI] showEvent: visible, windowState=", int(self.windowState()))
+        print("[UI] showEvent: visible, windowState=", self.windowState().value)
         self._blob.setGeometry(0, 0, self._container.width(), self._container.height())
         super().showEvent(event)
 
@@ -412,7 +412,7 @@ class MainWindow(QtWidgets.QWidget):
 
     def changeEvent(self, event: QtCore.QEvent) -> None:
         if event.type() == QtCore.QEvent.WindowStateChange:
-            print("[UI] changeEvent: state=", int(self.windowState()))
+            print("[UI] changeEvent: state=", self.windowState().value)
         super().changeEvent(event)
 
     def paintEvent(self, event: QtGui.QPaintEvent) -> None:
