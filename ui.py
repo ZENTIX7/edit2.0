@@ -182,13 +182,14 @@ class Toast(QtWidgets.QFrame):
         layout.setSpacing(10)
 
         badge = QtWidgets.QLabel(icon)
-        badge.setFixedSize(22, 22)
+        badge.setFixedSize(20, 20)
         badge.setAlignment(QtCore.Qt.AlignCenter)
         badge.setStyleSheet(
             "QLabel {"
-            f"background-color: {color.name()};"
-            "color: #0b0f16;"
-            "border-radius: 11px;"
+            f"color: {color.name()};"
+            "background: transparent;"
+            "border: none;"
+            "font-size: 12px;"
             "font-weight: 700;"
             "}"
         )
@@ -345,7 +346,7 @@ class TweakWorker(QtCore.QObject):
         try:
             apply_tweak(self._tweak, self._backup_dir, self._backed_up)
             self.finished.emit(TweakResult(True, "Applied tweak successfully!", self._tweak))
-        except RuntimeError as exc:
+        except Exception as exc:
             self.finished.emit(TweakResult(False, str(exc), self._tweak))
 
 
@@ -360,7 +361,7 @@ class TaskWorker(QtCore.QObject):
         try:
             message = self._task()
             self.finished.emit(TaskResult(True, message))
-        except RuntimeError as exc:
+        except Exception as exc:
             self.finished.emit(TaskResult(False, str(exc)))
 
 
@@ -931,7 +932,11 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(8)
 
         icon = QtWidgets.QLabel("🔍")
-        icon.setStyleSheet("color: #9aa3b7; font-size: 14px; background: transparent;")
+        icon.setStyleSheet(
+            "color: #9aa3b7; font-size: 14px; background: transparent; border: none; padding: 0;"
+        )
+        icon.setFrameShape(QtWidgets.QFrame.NoFrame)
+        icon.setAttribute(QtCore.Qt.WA_TranslucentBackground)
         layout.addWidget(icon)
 
         self._search = QtWidgets.QLineEdit()
