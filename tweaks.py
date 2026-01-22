@@ -142,8 +142,10 @@ def clean_recycle_bin() -> None:
         [
             "powershell",
             "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
             "-Command",
-            "Clear-RecycleBin -Force",
+            "Clear-RecycleBin -Force -ErrorAction Stop",
         ],
         "Empty Recycle Bin",
     )

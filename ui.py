@@ -181,31 +181,31 @@ class Toast(QtWidgets.QFrame):
             "border: none;"
             "}"
         )
+        self._badge_color = color
+        self._spinner_timer: QtCore.QTimer | None = None
+        self._spinner_frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+        self._spinner_index = 0
+
         layout = QtWidgets.QHBoxLayout(self)
-        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(10)
 
-        badge = QtWidgets.QLabel(icon)
-        badge.setFixedSize(20, 20)
-        badge.setAlignment(QtCore.Qt.AlignCenter)
-        badge.setStyleSheet(
-            "QLabel {"
-            f"color: {color.name()};"
-            "background: transparent;"
-            "border: none;"
-            "font-size: 12px;"
-            "font-weight: 700;"
-            "}"
-        )
-        layout.addWidget(badge)
+        self._badge = QtWidgets.QLabel(icon)
+        self._badge.setFixedSize(20, 20)
+        self._badge.setAlignment(QtCore.Qt.AlignCenter)
+        self._badge.setStyleSheet(self._badge_style(color))
+        layout.addWidget(self._badge)
 
         label = QtWidgets.QLabel(message)
         label.setStyleSheet(
             "color: #e6ecff; font-size: 12px; background: transparent; border: none;"
         )
         label.setFrameShape(QtWidgets.QFrame.NoFrame)
+        label.setMinimumHeight(18)
+        label.setAlignment(QtCore.Qt.AlignVCenter | QtCore.Qt.AlignLeft)
         label.setWordWrap(True)
-        layout.addWidget(label)
+        self._label = label
+        layout.addWidget(self._label)
 
         self.setGraphicsEffect(self._shadow())
         self.setWindowOpacity(0.0)
@@ -218,6 +218,54 @@ class Toast(QtWidgets.QFrame):
         shadow.setOffset(0, 8)
         return shadow
 
+    def _badge_style(self, color: QtGui.QColor) -> str:
+        return (
+            "QLabel {"
+            f"color: {color.name()};"
+            "background: transparent;"
+            "border: none;"
+            "font-size: 12px;"
+            "font-weight: 700;"
+            "}"
+        )
+
+    def set_message(self, message: str) -> None:
+        self._label.setText(message)
+
+    def set_badge(self, color: QtGui.QColor, icon: str, *, animate: bool = False) -> None:
+        self._badge.setText(icon)
+        if not animate:
+            self._badge.setStyleSheet(self._badge_style(color))
+            self._badge_color = color
+            return
+
+        animation = QtCore.QVariantAnimation(self)
+        animation.setDuration(220)
+        animation.setStartValue(self._badge_color)
+        animation.setEndValue(color)
+        animation.valueChanged.connect(
+            lambda value: self._badge.setStyleSheet(self._badge_style(value))
+        )
+        animation.finished.connect(lambda: setattr(self, "_badge_color", color))
+        animation.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+    def start_spinner(self) -> None:
+        self.stop_spinner()
+        self._badge.setText(self._spinner_frames[self._spinner_index])
+        self._spinner_timer = QtCore.QTimer(self)
+        self._spinner_timer.timeout.connect(self._advance_spinner)
+        self._spinner_timer.start(80)
+
+    def _advance_spinner(self) -> None:
+        self._spinner_index = (self._spinner_index + 1) % len(self._spinner_frames)
+        self._badge.setText(self._spinner_frames[self._spinner_index])
+
+    def stop_spinner(self) -> None:
+        if self._spinner_timer:
+            self._spinner_timer.stop()
+            self._spinner_timer.deleteLater()
+            self._spinner_timer = None
+
 
 class ToastManager(QtCore.QObject):
     def __init__(self, parent: QtWidgets.QWidget, animation: AnimationSettings) -> None:
@@ -226,6 +274,7 @@ class ToastManager(QtCore.QObject):
         self._toasts: list[Toast] = []
         self._accent = QtGui.QColor("#7d5cff")
         self._animation = animation
+        self._active_work_toast: Toast | None = None
 
     def set_accent(self, color: QtGui.QColor) -> None:
         self._accent = color
@@ -248,6 +297,24 @@ class ToastManager(QtCore.QObject):
         self._toasts.insert(0, toast)
         self._reposition_toasts()
         self._animate_toast(toast)
+        if tone == "neutral":
+            toast.start_spinner()
+            self._active_work_toast = toast
+        return toast
+
+    def complete_work(self, message: str, *, success: bool) -> None:
+        toast = self._active_work_toast
+        self._active_work_toast = None
+        if not toast:
+            tone = "success" if success else "error"
+            self.show_toast(message, tone=tone)
+            return
+        toast.stop_spinner()
+        icon = "✓" if success else "!"
+        color = QtGui.QColor("#32d583") if success else QtGui.QColor("#f97066")
+        toast.set_message(message)
+        toast.set_badge(color, icon, animate=True)
+        QtCore.QTimer.singleShot(self._animation.scale(1600), lambda: self._fade_out(toast))
 
     def _animate_toast(self, toast: Toast) -> None:
         start_pos = toast.pos() + QtCore.QPoint(0, -6)
@@ -709,6 +776,11 @@ class MainWindow(QtWidgets.QWidget):
         self._backed_up: set[str] = set()
         self._active_category = "All"
         self._presets = load_presets()
+        self._category_meta = {
+            "Mouse": ("🖱️", "🖱️ Pointer precision and mouse feel tweaks."),
+            "UI": ("🪟", "🪟 Windows visuals and shell responsiveness."),
+            "Network": ("🌐", "🌐 Network stack maintenance and resets."),
+        }
 
         self._toast_manager = ToastManager(self, self._animation)
         self._toast_manager.set_accent(self._accent)
@@ -799,6 +871,8 @@ class MainWindow(QtWidgets.QWidget):
         bar = QtWidgets.QFrame()
         bar.setFixedHeight(48)
         bar.setStyleSheet("background: transparent;")
+        bar.setMouseTracking(True)
+        bar.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents, False)
         layout = QtWidgets.QHBoxLayout(bar)
         layout.setContentsMargins(4, 0, 4, 0)
         layout.setSpacing(10)
@@ -849,6 +923,8 @@ class MainWindow(QtWidgets.QWidget):
                     self.move(self.pos() + delta)
                     self._drag_pos = mouse_event.globalPosition().toPoint()
                     return True
+            if event.type() == QtCore.QEvent.MouseButtonRelease:
+                self._drag_pos = QtCore.QPoint()
         return super().eventFilter(obj, event)
 
     def _build_sidebar(self) -> QtWidgets.QFrame:
@@ -942,8 +1018,10 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(8)
 
         icon = QtWidgets.QLabel("🔍")
+        icon.setAlignment(QtCore.Qt.AlignCenter)
+        icon.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         icon.setStyleSheet(
-            "color: #9aa3b7; font-size: 14px; background: transparent; border: none; padding: 0;"
+            "color: #9aa3b7; font-size: 14px; background: transparent; border: none; padding: 0; margin: 0;"
         )
         icon.setFrameShape(QtWidgets.QFrame.NoFrame)
         icon.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -971,19 +1049,12 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         layout.addLayout(self._build_header())
-        self._tweaks_header = self._build_section_header(
-            title="Tweaks Overview",
-            subtitle="Quick access to mouse, UI, and network tweaks.",
-            icon="⚡",
+        self._category_header = self._build_section_header(
+            title="All Tweaks",
+            subtitle="Mouse, UI, and network groups.",
+            icon="✨",
         )
-        layout.addWidget(self._tweaks_header)
-        self._network_header = self._build_section_header(
-            title="Network Maintenance",
-            subtitle="Flush DNS, release/renew IP, reset Winsock (reboot required).",
-            icon="🌐",
-        )
-        self._network_header.hide()
-        layout.addWidget(self._network_header)
+        layout.addWidget(self._category_header)
         layout.addWidget(self._build_search())
         layout.addWidget(self._build_tweak_list(), 1)
         return page
@@ -994,17 +1065,7 @@ class MainWindow(QtWidgets.QWidget):
         self._scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
         self._scroll.setStyleSheet(
             "QScrollArea { background: transparent; }"
-            "QScrollBar:vertical {"
-            "background: transparent;"
-            "width: 8px;"
-            "}"
-            "QScrollBar::handle:vertical {"
-            "background: rgba(125, 92, 255, 0.5);"
-            "border-radius: 4px;"
-            "}"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-            "height: 0px;"
-            "}"
+            f"{self._scrollbar_style()}"
         )
 
         container = QtWidgets.QWidget()
@@ -1136,6 +1197,33 @@ class MainWindow(QtWidgets.QWidget):
         divider.setStyleSheet("background: rgba(255, 255, 255, 0.06);")
         layout.addWidget(divider)
         return frame
+
+    def _scrollbar_style(self) -> str:
+        accent = self._accent.name()
+        return (
+            "QScrollBar:vertical {"
+            "background: transparent;"
+            "width: 9px;"
+            "margin: 2px 0 2px 0;"
+            "}"
+            "QScrollBar::handle:vertical {"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(125, 92, 255, 0.9), stop:1 {accent});"
+            "border-radius: 6px;"
+            "min-height: 28px;"
+            "}"
+            "QScrollBar::handle:vertical:hover {"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(155, 126, 255, 0.95), stop:1 {accent});"
+            "}"
+            "QScrollBar::handle:vertical:pressed {"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(115, 80, 230, 0.95), stop:1 {accent});"
+            "}"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
+            "height: 0px;"
+            "}"
+            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {"
+            "background: transparent;"
+            "}"
+        )
 
     def _action_card(self, title: str, description: str, action: Callable[[], None]) -> QtWidgets.QFrame:
         card = QtWidgets.QFrame()
@@ -1339,7 +1427,10 @@ class MainWindow(QtWidgets.QWidget):
         self._preset_scroll = QtWidgets.QScrollArea()
         self._preset_scroll.setWidgetResizable(True)
         self._preset_scroll.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self._preset_scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        self._preset_scroll.setStyleSheet(
+            "QScrollArea { background: transparent; }"
+            f"{self._scrollbar_style()}"
+        )
         preset_container = QtWidgets.QWidget()
         self._preset_list = QtWidgets.QVBoxLayout(preset_container)
         self._preset_list.setContentsMargins(0, 0, 0, 0)
@@ -1376,15 +1467,40 @@ class MainWindow(QtWidgets.QWidget):
             if widget:
                 widget.deleteLater()
 
-        for tweak in self._filtered_tweaks():
-            card = TweakCard(
-                tweak,
-                self._accent,
-                self._animation,
-                on_apply=self._handle_apply,
-                on_restore=self._handle_restore,
-            )
-            self._tweak_layout.addWidget(card)
+        items = self._filtered_tweaks()
+        if self._active_category == "All":
+            for category in ["Mouse", "UI", "Network"]:
+                group = [tweak for tweak in items if tweak.category == category]
+                if not group:
+                    continue
+                emoji, description = self._category_meta.get(
+                    category, ("✨", "Tweaks for this category.")
+                )
+                header = self._build_section_header(
+                    title=category,
+                    subtitle=description,
+                    icon=emoji,
+                )
+                self._tweak_layout.addWidget(header)
+                for tweak in group:
+                    card = TweakCard(
+                        tweak,
+                        self._accent,
+                        self._animation,
+                        on_apply=self._handle_apply,
+                        on_restore=self._handle_restore,
+                    )
+                    self._tweak_layout.addWidget(card)
+        else:
+            for tweak in items:
+                card = TweakCard(
+                    tweak,
+                    self._accent,
+                    self._animation,
+                    on_apply=self._handle_apply,
+                    on_restore=self._handle_restore,
+                )
+                self._tweak_layout.addWidget(card)
 
         self._tweak_layout.addStretch()
 
@@ -1402,7 +1518,7 @@ class MainWindow(QtWidgets.QWidget):
         return items
 
     def _filter_tweaks(self) -> None:
-        self._update_network_header_visibility()
+        self._update_tweaks_header()
         self._render_tweaks()
 
     def _set_category(self, category: str) -> None:
@@ -1421,18 +1537,26 @@ class MainWindow(QtWidgets.QWidget):
             return
 
         self._animate_page_switch(self._tweaks_page, force=True)
-        self._update_network_header_visibility()
+        self._update_tweaks_header()
         self._render_tweaks()
 
-    def _update_network_header_visibility(self) -> None:
-        if not hasattr(self, "_network_header"):
+    def _update_tweaks_header(self) -> None:
+        if not hasattr(self, "_category_header"):
             return
-        show_header = self._active_category in ("All", "Network")
+        title = "All Tweaks"
+        subtitle = "Mouse, UI, and network groups."
+        icon = "✨"
+        if self._active_category in self._category_meta:
+            icon, subtitle = self._category_meta[self._active_category]
+            title = self._active_category
         if self._search.text().strip():
-            show_header = False
-        self._network_header.setVisible(show_header)
-        if hasattr(self, "_tweaks_header"):
-            self._tweaks_header.setVisible(self._active_category in ("All", "Mouse", "UI", "Network"))
+            title = "Search Results"
+            subtitle = "Filtered tweaks based on your query."
+            icon = "🔍"
+        self._category_header.deleteLater()
+        self._category_header = self._build_section_header(title=title, subtitle=subtitle, icon=icon)
+        self._category_header.setObjectName("categoryHeader")
+        self._tweaks_page.layout().insertWidget(1, self._category_header)
 
     def _animate_page_switch(self, target: QtWidgets.QWidget, *, force: bool = False) -> None:
         if self._page_stack.currentWidget() is target and not force:
@@ -1480,13 +1604,13 @@ class MainWindow(QtWidgets.QWidget):
 
     def _handle_worker_result(self, result: TweakResult) -> None:
         if result.success:
-            self._toast_manager.show_toast("Applied tweak successfully!", tone="success")
+            self._toast_manager.complete_work("Applied tweak successfully!", success=True)
             if result.tweak and result.tweak.post_message:
                 self._toast_manager.show_toast(result.tweak.post_message, tone="neutral")
             if result.tweak and result.tweak.explorer_notice:
                 self._prompt_restart_explorer()
         else:
-            self._toast_manager.show_toast(result.message, tone="error")
+            self._toast_manager.complete_work(result.message, success=False)
 
     def _handle_restore(self, tweak: Tweak) -> None:
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(
@@ -1532,9 +1656,12 @@ class MainWindow(QtWidgets.QWidget):
 
     def _handle_task_result(self, result: TaskResult, success_tone: str) -> None:
         if result.success:
-            self._toast_manager.show_toast(result.message, tone=success_tone)
+            if success_tone == "success":
+                self._toast_manager.complete_work(result.message, success=True)
+            else:
+                self._toast_manager.complete_work(result.message, success=True)
         else:
-            self._toast_manager.show_toast(result.message, tone="error")
+            self._toast_manager.complete_work(result.message, success=False)
 
     def _handle_clean_temp(self) -> None:
         self._toast_manager.show_toast("Work in progress...", tone="neutral")
