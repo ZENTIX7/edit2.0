@@ -176,6 +176,10 @@ class Toast(QtWidgets.QFrame):
             "border-radius: 14px;"
             "border: 1px solid rgba(255, 255, 255, 0.08);"
             "}"
+            "QLabel {"
+            "background: transparent;"
+            "border: none;"
+            "}"
         )
         layout = QtWidgets.QHBoxLayout(self)
         layout.setContentsMargins(14, 10, 14, 10)
@@ -196,7 +200,10 @@ class Toast(QtWidgets.QFrame):
         layout.addWidget(badge)
 
         label = QtWidgets.QLabel(message)
-        label.setStyleSheet("color: #e6ecff; font-size: 12px; background: transparent;")
+        label.setStyleSheet(
+            "color: #e6ecff; font-size: 12px; background: transparent; border: none;"
+        )
+        label.setFrameShape(QtWidgets.QFrame.NoFrame)
         label.setWordWrap(True)
         layout.addWidget(label)
 
@@ -903,7 +910,10 @@ class MainWindow(QtWidgets.QWidget):
     def _build_header(self) -> QtWidgets.QHBoxLayout:
         layout = QtWidgets.QHBoxLayout()
         title = QtWidgets.QLabel("Tweaks Dashboard")
-        title.setStyleSheet("color: #f5f7ff; font-size: 18px; font-weight: 700;")
+        title.setStyleSheet(
+            "color: #f5f7ff; font-size: 18px; font-weight: 700; background: transparent; border: none;"
+        )
+        title.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title)
 
         badge = QtWidgets.QLabel("Premium")
@@ -961,6 +971,12 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         layout.addLayout(self._build_header())
+        self._tweaks_header = self._build_section_header(
+            title="Tweaks Overview",
+            subtitle="Quick access to mouse, UI, and network tweaks.",
+            icon="⚡",
+        )
+        layout.addWidget(self._tweaks_header)
         self._network_header = self._build_section_header(
             title="Network Maintenance",
             subtitle="Flush DNS, release/renew IP, reset Winsock (reboot required).",
@@ -1005,6 +1021,12 @@ class MainWindow(QtWidgets.QWidget):
         page.setStyleSheet("background: transparent;")
         layout = QtWidgets.QVBoxLayout(page)
         layout.setContentsMargins(0, 0, 0, 0)
+        header = self._build_section_header(
+            title="Power",
+            subtitle="Power-related tweaks will appear here soon.",
+            icon="⚙️",
+        )
+        layout.addWidget(header)
         layout.addStretch()
         label = QtWidgets.QLabel("Coming soon")
         label.setAlignment(QtCore.Qt.AlignCenter)
@@ -1020,8 +1042,11 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
-        header = QtWidgets.QLabel("Cleanup Tools")
-        header.setStyleSheet("color: #f5f7ff; font-size: 18px; font-weight: 700;")
+        header = self._build_section_header(
+            title="Cleanup Tools",
+            subtitle="Clear cached files, Roblox data, and the Recycle Bin safely.",
+            icon="🧹",
+        )
         layout.addWidget(header)
 
         layout.addWidget(
@@ -1057,6 +1082,14 @@ class MainWindow(QtWidgets.QWidget):
 
         row = QtWidgets.QHBoxLayout()
         row.setSpacing(10)
+
+        accent = QtWidgets.QFrame()
+        accent.setFixedWidth(4)
+        accent.setMinimumHeight(34)
+        accent.setStyleSheet(
+            f"background: {self._accent.name()}; border-radius: 2px;"
+        )
+        row.addWidget(accent)
 
         icon_label = QtWidgets.QLabel(icon)
         icon_label.setFixedSize(28, 28)
@@ -1145,8 +1178,11 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(16)
 
-        header = QtWidgets.QLabel("Style")
-        header.setStyleSheet("color: #f5f7ff; font-size: 18px; font-weight: 700;")
+        header = self._build_section_header(
+            title="Style",
+            subtitle="Customize colors, presets, and animation timing.",
+            icon="🎨",
+        )
         layout.addWidget(header)
 
         theme_card = QtWidgets.QFrame()
@@ -1156,6 +1192,10 @@ class MainWindow(QtWidgets.QWidget):
             "border-radius: 16px;"
             "border: 1px solid rgba(255, 255, 255, 0.06);"
             "}"
+            "QLabel {"
+            "background: transparent;"
+            "border: none;"
+            "}"
         )
         theme_layout = QtWidgets.QVBoxLayout(theme_card)
         theme_layout.setContentsMargins(16, 14, 16, 14)
@@ -1163,7 +1203,10 @@ class MainWindow(QtWidgets.QWidget):
 
         main_row = QtWidgets.QHBoxLayout()
         main_label = QtWidgets.QLabel("Main color")
-        main_label.setStyleSheet("color: #cfd6e6; font-size: 12px;")
+        main_label.setStyleSheet(
+            "color: #cfd6e6; font-size: 12px; background: transparent; border: none;"
+        )
+        main_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self._main_color_button = ColorButton(self._main_color)
         self._main_color_button.clicked.connect(self._pick_main_color)
         main_row.addWidget(main_label)
@@ -1173,7 +1216,10 @@ class MainWindow(QtWidgets.QWidget):
 
         glow_row = QtWidgets.QHBoxLayout()
         glow_label = QtWidgets.QLabel("Secondary/Glow color")
-        glow_label.setStyleSheet("color: #cfd6e6; font-size: 12px;")
+        glow_label.setStyleSheet(
+            "color: #cfd6e6; font-size: 12px; background: transparent; border: none;"
+        )
+        glow_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self._glow_color_button = ColorButton(self._accent)
         self._glow_color_button.clicked.connect(self._pick_glow_color)
         glow_row.addWidget(glow_label)
@@ -1183,7 +1229,10 @@ class MainWindow(QtWidgets.QWidget):
 
         speed_row = QtWidgets.QHBoxLayout()
         speed_label = QtWidgets.QLabel("Animation speed")
-        speed_label.setStyleSheet("color: #cfd6e6; font-size: 12px;")
+        speed_label.setStyleSheet(
+            "color: #cfd6e6; font-size: 12px; background: transparent; border: none;"
+        )
+        speed_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self._speed_value = QtWidgets.QLabel(f"{self._animation.speed:.1f}x")
         self._speed_value.setStyleSheet("color: #e6ecff; font-weight: 600;")
         speed_row.addWidget(speed_label)
@@ -1213,7 +1262,10 @@ class MainWindow(QtWidgets.QWidget):
 
         transition_row = QtWidgets.QHBoxLayout()
         transition_label = QtWidgets.QLabel("Transition speed")
-        transition_label.setStyleSheet("color: #cfd6e6; font-size: 12px;")
+        transition_label.setStyleSheet(
+            "color: #cfd6e6; font-size: 12px; background: transparent; border: none;"
+        )
+        transition_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         self._transition_value = QtWidgets.QLabel(f"{self._animation.transition_speed:.1f}x")
         self._transition_value.setStyleSheet("color: #e6ecff; font-weight: 600;")
         transition_row.addWidget(transition_label)
@@ -1250,13 +1302,20 @@ class MainWindow(QtWidgets.QWidget):
             "border-radius: 16px;"
             "border: 1px solid rgba(255, 255, 255, 0.06);"
             "}"
+            "QLabel {"
+            "background: transparent;"
+            "border: none;"
+            "}"
         )
         preset_layout = QtWidgets.QVBoxLayout(preset_card)
         preset_layout.setContentsMargins(16, 14, 16, 14)
         preset_layout.setSpacing(12)
 
         preset_title = QtWidgets.QLabel("Presets")
-        preset_title.setStyleSheet("color: #cfd6e6; font-weight: 600;")
+        preset_title.setStyleSheet(
+            "color: #cfd6e6; font-weight: 600; background: transparent; border: none;"
+        )
+        preset_title.setFrameShape(QtWidgets.QFrame.NoFrame)
         preset_layout.addWidget(preset_title)
 
         form = QtWidgets.QHBoxLayout()
@@ -1372,6 +1431,8 @@ class MainWindow(QtWidgets.QWidget):
         if self._search.text().strip():
             show_header = False
         self._network_header.setVisible(show_header)
+        if hasattr(self, "_tweaks_header"):
+            self._tweaks_header.setVisible(self._active_category in ("All", "Mouse", "UI", "Network"))
 
     def _animate_page_switch(self, target: QtWidgets.QWidget, *, force: bool = False) -> None:
         if self._page_stack.currentWidget() is target and not force:
