@@ -2,8 +2,9 @@ import sys
 import traceback
 from pathlib import Path
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
+from loading_screen import LoadingScreen
 from tweaks import APP_TITLE, is_admin, is_windows
 from ui import MainWindow
 
@@ -38,14 +39,40 @@ def main() -> None:
         else:
             print(f"Screen: {screen_name}")
         app.setApplicationName(APP_TITLE)
+
         window = MainWindow()
-        window.show()
-        window.showNormal()
-        window.raise_()
-        window.activateWindow()
-        window.setWindowState(
-            (window.windowState() & ~QtCore.Qt.WindowMinimized) | QtCore.Qt.WindowActive
+        window.hide()
+
+        loading = LoadingScreen(
+            app_title=APP_TITLE,
+            accent=QtGui.QColor("#7d5cff"),
+            base_color=QtGui.QColor("#101623"),
+            animation_speed=1.0,
         )
+        loading.center_on_screen()
+
+        def show_main() -> None:
+            effect = QtWidgets.QGraphicsOpacityEffect(window)
+            effect.setOpacity(0.0)
+            window.setGraphicsEffect(effect)
+            window.show()
+            window.showNormal()
+            window.raise_()
+            window.activateWindow()
+            window.setWindowState(
+                (window.windowState() & ~QtCore.Qt.WindowMinimized)
+                | QtCore.Qt.WindowActive
+            )
+
+            fade = QtCore.QPropertyAnimation(effect, b"opacity")
+            fade.setDuration(420)
+            fade.setStartValue(0.0)
+            fade.setEndValue(1.0)
+            fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+            fade.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+        loading.finished.connect(show_main)
+        loading.show()
         sys.exit(app.exec())
     except Exception as exc:  # noqa: BLE001
         log_file.write_text(
