@@ -135,6 +135,58 @@ class GlassButton(QtWidgets.QPushButton):
         )
 
 
+class SidebarButton(QtWidgets.QPushButton):
+    def __init__(self, text: str, accent: QtGui.QColor, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(text, parent)
+        self._accent = accent
+        self._active = False
+        self._hover_animation = QtCore.QVariantAnimation(self)
+        self._hover_animation.setDuration(160)
+        self._hover_animation.valueChanged.connect(self._apply_hover)
+        self._hover_value = 0.0
+        self.setCursor(QtCore.Qt.PointingHandCursor)
+        self.setStyleSheet(self._style_for_state(0.0))
+
+    def set_active(self, active: bool) -> None:
+        self._active = active
+        self.setStyleSheet(self._style_for_state(self._hover_value))
+
+    def enterEvent(self, event: QtGui.QEnterEvent) -> None:
+        self._animate_hover(1.0)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event: QtCore.QEvent) -> None:
+        self._animate_hover(0.0)
+        super().leaveEvent(event)
+
+    def _animate_hover(self, target: float) -> None:
+        self._hover_animation.stop()
+        self._hover_animation.setStartValue(self._hover_value)
+        self._hover_animation.setEndValue(target)
+        self._hover_animation.start()
+
+    def _apply_hover(self, value: float) -> None:
+        self._hover_value = float(value)
+        self.setStyleSheet(self._style_for_state(self._hover_value))
+
+    def _style_for_state(self, hover: float) -> str:
+        if self._active:
+            bg = f"rgba(125, 92, 255, {0.35 + 0.2 * hover:.2f})"
+        else:
+            bg = f"rgba(125, 92, 255, {0.18 * hover:.2f})"
+        return (
+            "QPushButton {"
+            f"background-color: {bg};"
+            "color: #e1e7f7;"
+            "border: none;"
+            "border-radius: 12px;"
+            "padding: 8px 12px;"
+            "text-align: left;"
+            "font-weight: 600;"
+            "}"
+        )
+
+
 class ColorButton(QtWidgets.QPushButton):
     def __init__(self, color: QtGui.QColor, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
@@ -407,6 +459,42 @@ class AnimatedBlob(QtWidgets.QWidget):
         painter.fillRect(self.rect(), gradient)
 
 
+class AnimatedCard(QtWidgets.QFrame):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._shadow = QtWidgets.QGraphicsDropShadowEffect()
+        self._shadow.setBlurRadius(18)
+        self._shadow.setColor(QtGui.QColor(0, 0, 0, 140))
+        self._shadow.setOffset(0, 8)
+        self.setGraphicsEffect(self._shadow)
+        self._hover_animation = QtCore.QVariantAnimation(self)
+        self._hover_animation.setDuration(180)
+        self._hover_animation.valueChanged.connect(self._apply_hover_value)
+        self._hover_value = 0.0
+
+    def enterEvent(self, event: QtGui.QEnterEvent) -> None:
+        self._animate_hover(1.0)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event: QtCore.QEvent) -> None:
+        self._animate_hover(0.0)
+        super().leaveEvent(event)
+
+    def _animate_hover(self, target: float) -> None:
+        self._hover_animation.stop()
+        self._hover_animation.setStartValue(self._hover_value)
+        self._hover_animation.setEndValue(target)
+        self._hover_animation.start()
+
+    def _apply_hover_value(self, value: float) -> None:
+        self._hover_value = float(value)
+        blur = 18 + (10 * self._hover_value)
+        alpha = 140 + int(40 * self._hover_value)
+        self._shadow.setBlurRadius(blur)
+        self._shadow.setColor(QtGui.QColor(0, 0, 0, alpha))
+        self._shadow.setOffset(0, 8 + (2 * self._hover_value))
+
+
 class TweakWorker(QtCore.QObject):
     finished = QtCore.Signal(TweakResult)
 
@@ -439,7 +527,7 @@ class TaskWorker(QtCore.QObject):
             self.finished.emit(TaskResult(False, str(exc)))
 
 
-class TweakCard(QtWidgets.QFrame):
+class TweakCard(AnimatedCard):
     def __init__(
         self,
         tweak: Tweak,
@@ -458,8 +546,6 @@ class TweakCard(QtWidgets.QFrame):
             "border: 1px solid rgba(255, 255, 255, 0.06);"
             "}"
         )
-        self.setGraphicsEffect(self._shadow())
-
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(10)
@@ -505,13 +591,7 @@ class TweakCard(QtWidgets.QFrame):
 
         layout.addLayout(footer)
 
-    @staticmethod
-    def _shadow() -> QtWidgets.QGraphicsDropShadowEffect:
-        shadow = QtWidgets.QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(24)
-        shadow.setColor(QtGui.QColor(0, 0, 0, 160))
-        shadow.setOffset(0, 10)
-        return shadow
+
 
 
 class ColorPickerDialog(QtWidgets.QDialog):
@@ -956,9 +1036,8 @@ class MainWindow(QtWidgets.QWidget):
             if name not in categories:
                 categories.append(name)
         for category in categories:
-            button = QtWidgets.QPushButton(category)
-            button.setCursor(QtCore.Qt.PointingHandCursor)
-            button.setStyleSheet(self._category_style(category == "All"))
+            button = SidebarButton(category, self._accent)
+            button.set_active(category == "All")
             button.clicked.connect(partial(self._set_category, category))
             layout.addWidget(button)
             self._category_buttons[category] = button
@@ -1226,7 +1305,7 @@ class MainWindow(QtWidgets.QWidget):
         )
 
     def _action_card(self, title: str, description: str, action: Callable[[], None]) -> QtWidgets.QFrame:
-        card = QtWidgets.QFrame()
+        card = AnimatedCard()
         card.setStyleSheet(
             "QFrame {"
             "background-color: rgba(21, 24, 34, 0.9);"
@@ -1234,7 +1313,6 @@ class MainWindow(QtWidgets.QWidget):
             "border: 1px solid rgba(255, 255, 255, 0.06);"
             "}"
         )
-        card.setGraphicsEffect(self._shadow())
         layout = QtWidgets.QVBoxLayout(card)
         layout.setContentsMargins(18, 16, 18, 16)
         layout.setSpacing(10)
@@ -1524,7 +1602,10 @@ class MainWindow(QtWidgets.QWidget):
     def _set_category(self, category: str) -> None:
         self._active_category = category
         for key, button in self._category_buttons.items():
-            button.setStyleSheet(self._category_style(key == category))
+            if isinstance(button, SidebarButton):
+                button.set_active(key == category)
+            else:
+                button.setStyleSheet(self._category_style(key == category))
 
         if category == "Power":
             self._animate_page_switch(self._power_page)
