@@ -121,13 +121,23 @@ class LoadingScreen(QtWidgets.QDialog):
         layout.addLayout(center)
         layout.addStretch()
 
-        self._intro_animation()
-        QtCore.QTimer.singleShot(int(1800 * self._speed), self._finish_loading)
+        self._intro_started = False
+        self._finish_timer: QtCore.QTimer | None = None
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() == QtCore.Qt.Key_Escape:
             self._close_and_quit()
         super().keyPressEvent(event)
+
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        super().showEvent(event)
+        if not self._intro_started:
+            self._intro_started = True
+            self._intro_animation()
+            self._finish_timer = QtCore.QTimer(self)
+            self._finish_timer.setSingleShot(True)
+            self._finish_timer.timeout.connect(self._finish_loading)
+            self._finish_timer.start(int(1800 * self._speed))
 
     def _close_and_quit(self) -> None:
         QtWidgets.QApplication.quit()
