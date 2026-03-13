@@ -52,9 +52,7 @@ def main() -> None:
         loading.center_on_screen()
 
         def show_main() -> None:
-            effect = QtWidgets.QGraphicsOpacityEffect(window)
-            effect.setOpacity(0.0)
-            window.setGraphicsEffect(effect)
+            window.setWindowOpacity(0.0)
             window.show()
             window.showNormal()
             window.raise_()
@@ -64,7 +62,7 @@ def main() -> None:
                 | QtCore.Qt.WindowActive
             )
 
-            fade = QtCore.QPropertyAnimation(effect, b"opacity")
+            fade = QtCore.QPropertyAnimation(window, b"windowOpacity")
             fade.setDuration(420)
             fade.setStartValue(0.0)
             fade.setEndValue(1.0)
