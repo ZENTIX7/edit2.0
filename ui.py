@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import math
+import random
+import time
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -34,6 +36,130 @@ class TweakResult:
 class TaskResult:
     success: bool
     message: str
+
+
+@dataclass
+class BoostConfig:
+    video_url: str
+    boosts: int
+    webhook_url: str
+
+
+class BoostWorker(QtCore.QObject):
+    status = QtCore.Signal(str)
+    finished = QtCore.Signal(str)
+
+    def __init__(self, config: BoostConfig) -> None:
+        super().__init__()
+        self._config = config
+        self._stop_requested = False
+        self._driver = None
+
+    def stop(self) -> None:
+        self._stop_requested = True
+        if self._driver is not None:
+            try:
+                self._driver.quit()
+            except Exception:
+                pass
+
+    def run(self) -> None:
+        try:
+            import requests
+            from selenium import webdriver
+            from selenium.webdriver.common.by import By
+            from selenium.webdriver.support import expected_conditions as EC
+            from selenium.webdriver.support.ui import WebDriverWait
+        except Exception as exc:  # noqa: BLE001
+            self.finished.emit(f"Missing dependency: {exc}")
+            return
+
+        site_url = "https://zefame.com/free-instagram-views"
+        input_xpath = "/html/body/div[4]/section[1]/div/div[1]/div[2]/div/form/div/input"
+        button_xpath = "/html/body/div[4]/section[1]/div/div[1]/div[2]/div/form/div/button"
+        start_time = time.time()
+
+        try:
+            options = webdriver.ChromeOptions()
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            self._driver = webdriver.Chrome(options=options)
+        except Exception as exc:  # noqa: BLE001
+            self.finished.emit(f"Unable to start browser: {exc}")
+            return
+
+        try:
+            for cycle in range(1, self._config.boosts + 1):
+                if self._stop_requested:
+                    self.finished.emit("Boost stopped by user.")
+                    return
+                self.status.emit(f"Cycle {cycle}/{self._config.boosts}: opening target page...")
+                self._driver.get(site_url)
+                input_box = WebDriverWait(self._driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, input_xpath))
+                )
+                input_box.clear()
+                for char in self._config.video_url:
+                    if self._stop_requested:
+                        self.finished.emit("Boost stopped by user.")
+                        return
+                    input_box.send_keys(char)
+                    time.sleep(random.uniform(0.04, 0.09))
+
+                time.sleep(1)
+                button = self._driver.find_element(By.XPATH, button_xpath)
+                self._driver.execute_script("arguments[0].click();", button)
+                self._status_countdown(60, "Website processing")
+                self._send_webhook(requests, cycle, start_time)
+                self._status_countdown(360, "Cooldown")
+
+            self.finished.emit("All boost cycles completed.")
+        except Exception as exc:  # noqa: BLE001
+            self.finished.emit(f"Boost failed: {exc}")
+        finally:
+            if self._driver is not None:
+                try:
+                    self._driver.quit()
+                except Exception:
+                    pass
+                self._driver = None
+
+    def _status_countdown(self, seconds: int, title: str) -> None:
+        for remaining in range(seconds, 0, -1):
+            if self._stop_requested:
+                return
+            mins, secs = divmod(remaining, 60)
+            self.status.emit(f"{title}: {mins:02d}:{secs:02d} remaining")
+            time.sleep(1)
+
+    def _send_webhook(self, requests_module: object, cycle: int, start_time: float) -> None:
+        webhook_url = self._config.webhook_url.strip()
+        if not webhook_url:
+            return
+        elapsed_seconds = time.time() - start_time
+        runtime = time.strftime("%H:%M:%S", time.gmtime(elapsed_seconds))
+        total_views = cycle * 300
+        cycles_left = self._config.boosts - cycle
+        payload = {
+            "username": "Zefame Booster Bot",
+            "embeds": [
+                {
+                    "title": "🚀 Cycle Completion Update",
+                    "color": 5763719,
+                    "fields": [
+                        {"name": "Current Cycle", "value": f"{cycle} / {self._config.boosts}", "inline": True},
+                        {"name": "Total Views Added", "value": f"{total_views}", "inline": True},
+                        {"name": "Total Runtime", "value": runtime, "inline": False},
+                        {"name": "Cycles Remaining", "value": f"{cycles_left}", "inline": True},
+                    ],
+                    "footer": {"text": "Discord: 7pce"},
+                }
+            ],
+        }
+        try:
+            requests_module.post(webhook_url, json=payload, timeout=10)
+        except Exception:
+            self.status.emit("Webhook notification failed (continuing).")
 
 
 class AnimationSettings:
@@ -864,6 +990,8 @@ class MainWindow(QtWidgets.QWidget):
 
         self._toast_manager = ToastManager(self, self._animation)
         self._toast_manager.set_accent(self._accent)
+        self._boost_thread: QtCore.QThread | None = None
+        self._boost_worker: BoostWorker | None = None
 
         self._build_ui()
         self._start_intro_animation()
@@ -881,9 +1009,25 @@ class MainWindow(QtWidgets.QWidget):
         self._title_bar.installEventFilter(self)
         layout.addWidget(self._title_bar)
 
-        body = QtWidgets.QHBoxLayout()
+        self._service_stack = QtWidgets.QStackedWidget()
+        self._service_stack.setStyleSheet("background: transparent;")
+        layout.addWidget(self._service_stack, 1)
+
+        self._selector_page = self._build_selector_page()
+        self._tweaks_service_page = self._build_tweaks_service_page()
+        self._boost_service_page = self._build_boost_page()
+
+        self._service_stack.addWidget(self._selector_page)
+        self._service_stack.addWidget(self._tweaks_service_page)
+        self._service_stack.addWidget(self._boost_service_page)
+        self._service_stack.setCurrentWidget(self._selector_page)
+
+    def _build_tweaks_service_page(self) -> QtWidgets.QWidget:
+        page = QtWidgets.QWidget()
+        page.setStyleSheet("background: transparent;")
+        body = QtWidgets.QHBoxLayout(page)
+        body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(18)
-        layout.addLayout(body)
 
         sidebar = self._build_sidebar()
         body.addWidget(sidebar, 0)
@@ -902,6 +1046,7 @@ class MainWindow(QtWidgets.QWidget):
         self._page_stack.addWidget(self._cleanup_page)
         self._page_stack.addWidget(self._style_page)
         self._page_stack.setCurrentWidget(self._tweaks_page)
+        return page
 
     def showEvent(self, event: QtGui.QShowEvent) -> None:
         screen = QtWidgets.QApplication.primaryScreen()
@@ -1044,6 +1189,163 @@ class MainWindow(QtWidgets.QWidget):
 
         layout.addStretch()
         return frame
+
+    def _build_selector_page(self) -> QtWidgets.QWidget:
+        page = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(page)
+        layout.setContentsMargins(140, 80, 140, 80)
+        layout.setSpacing(20)
+
+        title = QtWidgets.QLabel("Choose a service")
+        title.setAlignment(QtCore.Qt.AlignCenter)
+        title.setStyleSheet(
+            "color: #f5f7ff; font-size: 28px; font-weight: 700; background: transparent;"
+        )
+        layout.addWidget(title)
+
+        subtitle = QtWidgets.QLabel("Select Tweaking GUI or Boost Service")
+        subtitle.setAlignment(QtCore.Qt.AlignCenter)
+        subtitle.setStyleSheet("color: #b9c4de; font-size: 14px; background: transparent;")
+        layout.addWidget(subtitle)
+
+        cards = QtWidgets.QHBoxLayout()
+        cards.setSpacing(20)
+        layout.addLayout(cards)
+
+        cards.addWidget(self._build_service_card("🛠️", "Tweaking GUI", "Open the normal tweaks dashboard.", self._open_tweaks_service))
+        cards.addWidget(self._build_service_card("🚀", "Boost Service", "Start/stop the Instagram reels booster.", self._open_boost_service))
+        layout.addStretch()
+        return page
+
+    def _build_service_card(
+        self, icon: str, title: str, description: str, callback: Callable[[], None]
+    ) -> QtWidgets.QFrame:
+        card = QtWidgets.QFrame()
+        card.setStyleSheet(
+            "QFrame {"
+            "background-color: rgba(18, 20, 30, 0.84);"
+            "border-radius: 22px;"
+            "border: 1px solid rgba(255, 255, 255, 0.08);"
+            "}"
+        )
+        card.setGraphicsEffect(self._shadow())
+        layout = QtWidgets.QVBoxLayout(card)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        icon_label = QtWidgets.QLabel(icon)
+        icon_label.setAlignment(QtCore.Qt.AlignCenter)
+        icon_label.setStyleSheet("font-size: 30px; background: transparent;")
+        layout.addWidget(icon_label)
+
+        title_label = QtWidgets.QLabel(title)
+        title_label.setAlignment(QtCore.Qt.AlignCenter)
+        title_label.setStyleSheet("color: #f5f7ff; font-size: 20px; font-weight: 700;")
+        layout.addWidget(title_label)
+
+        desc = QtWidgets.QLabel(description)
+        desc.setWordWrap(True)
+        desc.setAlignment(QtCore.Qt.AlignCenter)
+        desc.setStyleSheet("color: #afbad6; font-size: 12px;")
+        layout.addWidget(desc)
+
+        button = AnimatedButton("Open", self._accent, self._animation)
+        button.clicked.connect(callback)
+        layout.addWidget(button)
+        return card
+
+    def _build_boost_page(self) -> QtWidgets.QWidget:
+        page = QtWidgets.QWidget()
+        outer = QtWidgets.QVBoxLayout(page)
+        outer.setContentsMargins(130, 36, 130, 36)
+        outer.setSpacing(14)
+
+        back = QtWidgets.QPushButton("← Back")
+        back.setCursor(QtCore.Qt.PointingHandCursor)
+        back.setStyleSheet("QPushButton {color: #dce4ff; background: transparent; border: none; font-weight: 600;} QPushButton:hover {color: #ffffff;}")
+        back.clicked.connect(lambda: self._animate_service_switch(self._selector_page))
+        outer.addWidget(back, 0, QtCore.Qt.AlignLeft)
+
+        panel = QtWidgets.QFrame()
+        panel.setStyleSheet(
+            "QFrame {"
+            "background-color: rgba(18, 20, 30, 0.85);"
+            "border: 1px solid rgba(255,255,255,0.08);"
+            "border-radius: 24px;"
+            "}"
+        )
+        panel.setGraphicsEffect(self._shadow())
+        outer.addWidget(panel, 1)
+
+        layout = QtWidgets.QVBoxLayout(panel)
+        layout.setContentsMargins(28, 24, 28, 24)
+        layout.setSpacing(14)
+
+        title = QtWidgets.QLabel("Boost Service")
+        title.setStyleSheet("color: #f5f7ff; font-size: 24px; font-weight: 700;")
+        layout.addWidget(title)
+
+        self._boost_amount = QtWidgets.QSpinBox()
+        self._boost_amount.setRange(1, 9999)
+        self._boost_amount.setValue(1)
+        self._boost_amount.setStyleSheet(self._input_style())
+        layout.addWidget(self._labeled_input("Boost Amount", self._boost_amount))
+
+        self._boost_link = QtWidgets.QLineEdit()
+        self._boost_link.setPlaceholderText("https://instagram.com/reel/...")
+        self._boost_link.setStyleSheet(self._input_style())
+        layout.addWidget(self._labeled_input("Instagram Reel Link", self._boost_link))
+
+        self._webhook_toggle = QtWidgets.QCheckBox("Add webhook")
+        self._webhook_toggle.setStyleSheet("color: #dce4ff;")
+        self._webhook_toggle.toggled.connect(self._toggle_webhook_field)
+        layout.addWidget(self._webhook_toggle)
+
+        self._webhook_input = QtWidgets.QLineEdit()
+        self._webhook_input.setPlaceholderText("https://discord.com/api/webhooks/...")
+        self._webhook_input.setStyleSheet(self._input_style())
+        self._webhook_row = self._labeled_input("Webhook", self._webhook_input)
+        self._webhook_row.setVisible(False)
+        layout.addWidget(self._webhook_row)
+
+        action_row = QtWidgets.QHBoxLayout()
+        self._start_boost_btn = AnimatedButton("Start", self._accent, self._animation)
+        self._stop_boost_btn = AnimatedButton("Stop", QtGui.QColor("#ef4444"), self._animation)
+        self._stop_boost_btn.setEnabled(False)
+        self._start_boost_btn.clicked.connect(self._start_boost)
+        self._stop_boost_btn.clicked.connect(self._stop_boost)
+        action_row.addWidget(self._start_boost_btn)
+        action_row.addWidget(self._stop_boost_btn)
+        layout.addLayout(action_row)
+
+        self._boost_status = QtWidgets.QLabel("Idle")
+        self._boost_status.setWordWrap(True)
+        self._boost_status.setStyleSheet("color: #b9c4de; background: transparent;")
+        layout.addWidget(self._boost_status)
+        layout.addStretch()
+        return page
+
+    def _labeled_input(self, label_text: str, widget: QtWidgets.QWidget) -> QtWidgets.QWidget:
+        container = QtWidgets.QWidget()
+        layout = QtWidgets.QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        label = QtWidgets.QLabel(label_text)
+        label.setStyleSheet("color: #dce4ff; font-weight: 600;")
+        layout.addWidget(label)
+        layout.addWidget(widget)
+        return container
+
+    def _input_style(self) -> str:
+        return (
+            "QLineEdit, QSpinBox {"
+            "background-color: rgba(255,255,255,0.04);"
+            "color: #eaf0ff;"
+            "border: 1px solid rgba(255,255,255,0.12);"
+            "border-radius: 14px;"
+            "padding: 10px 12px;"
+            "}"
+        )
 
     def _category_style(self, active: bool) -> str:
         base = "rgba(125, 92, 255, 0.35)" if active else "transparent"
@@ -1599,6 +1901,92 @@ class MainWindow(QtWidgets.QWidget):
         self._update_tweaks_header()
         self._render_tweaks()
 
+    def _open_tweaks_service(self) -> None:
+        self._animate_service_switch(self._tweaks_service_page)
+
+    def _open_boost_service(self) -> None:
+        self._animate_service_switch(self._boost_service_page)
+
+    def _animate_service_switch(self, target: QtWidgets.QWidget) -> None:
+        if self._service_stack.currentWidget() is target:
+            return
+        effect = QtWidgets.QGraphicsOpacityEffect(target)
+        target.setGraphicsEffect(effect)
+        effect.setOpacity(0.0)
+        self._service_stack.setCurrentWidget(target)
+
+        target_pos = target.pos()
+        target.move(target_pos + QtCore.QPoint(0, 16))
+
+        fade = QtCore.QPropertyAnimation(effect, b"opacity")
+        fade.setDuration(self._animation.scale_transition(260))
+        fade.setStartValue(0.0)
+        fade.setEndValue(1.0)
+        fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+
+        slide = QtCore.QPropertyAnimation(target, b"pos")
+        slide.setDuration(self._animation.scale_transition(260))
+        slide.setStartValue(target.pos())
+        slide.setEndValue(target_pos)
+        slide.setEasingCurve(QtCore.QEasingCurve.OutCubic)
+
+        group = QtCore.QParallelAnimationGroup(target)
+        group.addAnimation(fade)
+        group.addAnimation(slide)
+        group.finished.connect(lambda: target.setGraphicsEffect(None))
+        group.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+    def _toggle_webhook_field(self, enabled: bool) -> None:
+        self._webhook_row.setVisible(enabled)
+
+    def _start_boost(self) -> None:
+        if self._boost_thread is not None:
+            return
+        reel_link = self._boost_link.text().strip()
+        if not reel_link:
+            self._toast_manager.show_toast("Please enter an Instagram reel link.", tone="warning")
+            return
+        webhook = self._webhook_input.text().strip() if self._webhook_toggle.isChecked() else ""
+        config = BoostConfig(
+            video_url=reel_link,
+            boosts=int(self._boost_amount.value()),
+            webhook_url=webhook,
+        )
+        self._boost_worker = BoostWorker(config)
+        self._boost_thread = QtCore.QThread(self)
+        self._boost_worker.moveToThread(self._boost_thread)
+        self._boost_thread.started.connect(self._boost_worker.run)
+        self._boost_worker.status.connect(self._on_boost_status)
+        self._boost_worker.finished.connect(self._on_boost_finished)
+        self._boost_worker.finished.connect(self._boost_thread.quit)
+        self._boost_worker.finished.connect(self._boost_worker.deleteLater)
+        self._boost_thread.finished.connect(self._boost_thread.deleteLater)
+        self._boost_thread.finished.connect(self._clear_boost_refs)
+        self._start_boost_btn.setEnabled(False)
+        self._stop_boost_btn.setEnabled(True)
+        self._on_boost_status("Starting browser...")
+        self._boost_thread.start()
+
+    def _stop_boost(self) -> None:
+        if self._boost_worker is None:
+            return
+        self._on_boost_status("Stopping boost and closing browser...")
+        self._boost_worker.stop()
+
+    def _on_boost_status(self, text: str) -> None:
+        self._boost_status.setText(text)
+
+    def _on_boost_finished(self, message: str) -> None:
+        self._boost_status.setText(message)
+        self._start_boost_btn.setEnabled(True)
+        self._stop_boost_btn.setEnabled(False)
+        tone = "success" if "completed" in message.lower() else "warning"
+        self._toast_manager.show_toast(message, tone=tone)
+
+    def _clear_boost_refs(self) -> None:
+        self._boost_thread = None
+        self._boost_worker = None
+
     def _set_category(self, category: str) -> None:
         self._active_category = category
         for key, button in self._category_buttons.items():
@@ -1858,6 +2246,11 @@ class MainWindow(QtWidgets.QWidget):
         move.setEndValue(QtCore.QPoint(geo.x(), geo.y()))
         move.setEasingCurve(QtCore.QEasingCurve.OutCubic)
         move.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
+        if self._boost_worker is not None:
+            self._boost_worker.stop()
+        super().closeEvent(event)
 
     @staticmethod
     def _shadow() -> QtWidgets.QGraphicsDropShadowEffect:
