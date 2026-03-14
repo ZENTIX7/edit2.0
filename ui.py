@@ -1199,13 +1199,15 @@ class MainWindow(QtWidgets.QWidget):
         title = QtWidgets.QLabel("Choose a service")
         title.setAlignment(QtCore.Qt.AlignCenter)
         title.setStyleSheet(
-            "color: #f5f7ff; font-size: 28px; font-weight: 700; background: transparent;"
+            "color: #f5f7ff; font-size: 28px; font-weight: 700; background: transparent; border: none;"
         )
+        title.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title)
 
         subtitle = QtWidgets.QLabel("Select Tweaking GUI or Boost Service")
         subtitle.setAlignment(QtCore.Qt.AlignCenter)
-        subtitle.setStyleSheet("color: #b9c4de; font-size: 14px; background: transparent;")
+        subtitle.setStyleSheet("color: #b9c4de; font-size: 14px; background: transparent; border: none;")
+        subtitle.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(subtitle)
 
         cards = QtWidgets.QHBoxLayout()
@@ -1221,8 +1223,9 @@ class MainWindow(QtWidgets.QWidget):
         self, icon: str, title: str, description: str, callback: Callable[[], None]
     ) -> QtWidgets.QFrame:
         card = QtWidgets.QFrame()
+        card.setObjectName("serviceCard")
         card.setStyleSheet(
-            "QFrame {"
+            "QFrame#serviceCard {"
             "background-color: rgba(18, 20, 30, 0.84);"
             "border-radius: 22px;"
             "border: 1px solid rgba(255, 255, 255, 0.08);"
@@ -1235,18 +1238,21 @@ class MainWindow(QtWidgets.QWidget):
 
         icon_label = QtWidgets.QLabel(icon)
         icon_label.setAlignment(QtCore.Qt.AlignCenter)
-        icon_label.setStyleSheet("font-size: 30px; background: transparent;")
+        icon_label.setStyleSheet("font-size: 30px; background: transparent; border: none;")
+        icon_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(icon_label)
 
         title_label = QtWidgets.QLabel(title)
         title_label.setAlignment(QtCore.Qt.AlignCenter)
-        title_label.setStyleSheet("color: #f5f7ff; font-size: 20px; font-weight: 700;")
+        title_label.setStyleSheet("color: #f5f7ff; font-size: 20px; font-weight: 700; background: transparent; border: none;")
+        title_label.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title_label)
 
         desc = QtWidgets.QLabel(description)
         desc.setWordWrap(True)
         desc.setAlignment(QtCore.Qt.AlignCenter)
-        desc.setStyleSheet("color: #afbad6; font-size: 12px;")
+        desc.setStyleSheet("color: #afbad6; font-size: 12px; background: transparent; border: none;")
+        desc.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(desc)
 
         button = AnimatedButton("Open", self._accent, self._animation)
@@ -1267,8 +1273,9 @@ class MainWindow(QtWidgets.QWidget):
         outer.addWidget(back, 0, QtCore.Qt.AlignLeft)
 
         panel = QtWidgets.QFrame()
+        panel.setObjectName("boostPanel")
         panel.setStyleSheet(
-            "QFrame {"
+            "QFrame#boostPanel {"
             "background-color: rgba(18, 20, 30, 0.85);"
             "border: 1px solid rgba(255,255,255,0.08);"
             "border-radius: 24px;"
@@ -1282,7 +1289,8 @@ class MainWindow(QtWidgets.QWidget):
         layout.setSpacing(14)
 
         title = QtWidgets.QLabel("Boost Service")
-        title.setStyleSheet("color: #f5f7ff; font-size: 24px; font-weight: 700;")
+        title.setStyleSheet("color: #f5f7ff; font-size: 24px; font-weight: 700; background: transparent; border: none;")
+        title.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(title)
 
         self._boost_amount = QtWidgets.QSpinBox()
@@ -1320,7 +1328,8 @@ class MainWindow(QtWidgets.QWidget):
 
         self._boost_status = QtWidgets.QLabel("Idle")
         self._boost_status.setWordWrap(True)
-        self._boost_status.setStyleSheet("color: #b9c4de; background: transparent;")
+        self._boost_status.setStyleSheet("color: #b9c4de; background: transparent; border: none;")
+        self._boost_status.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(self._boost_status)
         layout.addStretch()
         return page
@@ -1331,7 +1340,8 @@ class MainWindow(QtWidgets.QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         label = QtWidgets.QLabel(label_text)
-        label.setStyleSheet("color: #dce4ff; font-weight: 600;")
+        label.setStyleSheet("color: #dce4ff; font-weight: 600; background: transparent; border: none;")
+        label.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(label)
         layout.addWidget(widget)
         return container
