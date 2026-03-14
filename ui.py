@@ -1351,7 +1351,7 @@ class MainWindow(QtWidgets.QWidget):
         layout.addWidget(self._labeled_input("Instagram Reel Link", self._boost_link))
 
         self._webhook_toggle = QtWidgets.QCheckBox("Add webhook")
-        self._webhook_toggle.setStyleSheet("color: #dce4ff;")
+        self._webhook_toggle.setStyleSheet(self._checkbox_style())
         self._webhook_toggle.toggled.connect(self._toggle_webhook_field)
         layout.addWidget(self._webhook_toggle)
 
@@ -1412,6 +1412,42 @@ class MainWindow(QtWidgets.QWidget):
             "border: 1px solid rgba(255,255,255,0.12);"
             "border-radius: 14px;"
             "padding: 10px 12px;"
+            "}"
+        )
+
+    def _checkbox_style(self) -> str:
+        return (
+            "QCheckBox {"
+            "color: #dce4ff;"
+            "font-size: 13px;"
+            "spacing: 8px;"
+            "background: transparent;"
+            "}"
+            "QCheckBox::indicator {"
+            "width: 16px;"
+            "height: 16px;"
+            "border-radius: 5px;"
+            "border: 1px solid rgba(255, 255, 255, 0.24);"
+            "background-color: rgba(255, 255, 255, 0.06);"
+            "}"
+            "QCheckBox::indicator:hover {"
+            "border: 1px solid rgba(125, 92, 255, 0.90);"
+            "background-color: rgba(125, 92, 255, 0.18);"
+            "}"
+            "QCheckBox::indicator:checked {"
+            "image: none;"
+            "background-color: rgba(125, 92, 255, 0.95);"
+            "border: 1px solid rgba(125, 92, 255, 1.0);"
+            "}"
+            "QCheckBox::indicator:checked:hover {"
+            "background-color: rgba(136, 105, 255, 1.0);"
+            "}"
+            "QCheckBox:disabled {"
+            "color: rgba(220, 228, 255, 0.45);"
+            "}"
+            "QCheckBox::indicator:disabled {"
+            "background-color: rgba(255, 255, 255, 0.02);"
+            "border: 1px solid rgba(255, 255, 255, 0.12);"
             "}"
         )
 
