@@ -992,6 +992,9 @@ class MainWindow(QtWidgets.QWidget):
         self._toast_manager.set_accent(self._accent)
         self._boost_thread: QtCore.QThread | None = None
         self._boost_worker: BoostWorker | None = None
+        self._hover_shadow_effects: dict[QtWidgets.QWidget, QtWidgets.QGraphicsDropShadowEffect] = {}
+        self._hover_shadow_values: dict[QtWidgets.QWidget, float] = {}
+        self._hover_shadow_anims: dict[QtWidgets.QWidget, QtCore.QVariantAnimation] = {}
 
         self._build_ui()
         self._start_intro_animation()
@@ -1133,6 +1136,12 @@ class MainWindow(QtWidgets.QWidget):
             self._drag_pos = event.globalPosition().toPoint()
 
     def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        if isinstance(obj, QtWidgets.QWidget) and obj in self._hover_shadow_effects:
+            if event.type() == QtCore.QEvent.Enter:
+                self._animate_hover_shadow(obj, 1.0)
+            elif event.type() == QtCore.QEvent.Leave:
+                self._animate_hover_shadow(obj, 0.0)
+
         if isinstance(obj, QtWidgets.QPushButton):
             return super().eventFilter(obj, event)
         if obj is self._title_bar or self._title_bar.isAncestorOf(obj):
@@ -1151,6 +1160,43 @@ class MainWindow(QtWidgets.QWidget):
             if event.type() == QtCore.QEvent.MouseButtonRelease:
                 self._drag_pos = QtCore.QPoint()
         return super().eventFilter(obj, event)
+
+    def _set_shadow_value(self, widget: QtWidgets.QWidget, value: float) -> None:
+        effect = self._hover_shadow_effects.get(widget)
+        if effect is None:
+            return
+        clamped = max(0.0, min(1.0, value))
+        self._hover_shadow_values[widget] = clamped
+        blur = 12.0 + (12.0 * clamped)
+        alpha = 120 + int(70 * clamped)
+        offset = 4.0 + (3.0 * clamped)
+        effect.setBlurRadius(blur)
+        effect.setColor(QtGui.QColor(0, 0, 0, alpha))
+        effect.setOffset(0, offset)
+
+    def _animate_hover_shadow(self, widget: QtWidgets.QWidget, target: float) -> None:
+        current = self._hover_shadow_values.get(widget, 0.0)
+        anim = self._hover_shadow_anims.get(widget)
+        if anim is None:
+            anim = QtCore.QVariantAnimation(widget)
+            anim.setDuration(self._animation.scale(160))
+            anim.valueChanged.connect(lambda value, w=widget: self._set_shadow_value(w, float(value)))
+            self._hover_shadow_anims[widget] = anim
+        anim.stop()
+        anim.setStartValue(current)
+        anim.setEndValue(target)
+        anim.start()
+
+    def _attach_hover_shadow(self, widget: QtWidgets.QWidget) -> None:
+        if widget in self._hover_shadow_effects:
+            return
+        effect = QtWidgets.QGraphicsDropShadowEffect(widget)
+        self._hover_shadow_effects[widget] = effect
+        widget.setGraphicsEffect(effect)
+        self._hover_shadow_values[widget] = 0.0
+        self._set_shadow_value(widget, 0.0)
+        widget.setAttribute(QtCore.Qt.WA_Hover, True)
+        widget.installEventFilter(self)
 
     def _build_sidebar(self) -> QtWidgets.QFrame:
         frame = QtWidgets.QFrame()
@@ -1331,6 +1377,18 @@ class MainWindow(QtWidgets.QWidget):
         self._boost_status.setStyleSheet("color: #b9c4de; background: transparent; border: none;")
         self._boost_status.setFrameShape(QtWidgets.QFrame.NoFrame)
         layout.addWidget(self._boost_status)
+
+        for interactive in [
+            back,
+            self._boost_amount,
+            self._boost_link,
+            self._webhook_toggle,
+            self._webhook_input,
+            self._start_boost_btn,
+            self._stop_boost_btn,
+        ]:
+            self._attach_hover_shadow(interactive)
+
         layout.addStretch()
         return page
 
