@@ -1,6 +1,6 @@
-# Miwk Tweaks Utility
+# 7pce Tweaks Utility
 
-Modern Python GUI for applying Miwk tweak actions with one-click buttons, premium styling, and animations.
+Modern Python GUI for applying 7pce tweak actions with one-click buttons, premium styling, and animations.
 
 ## Run
 

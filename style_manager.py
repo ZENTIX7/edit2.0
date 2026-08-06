@@ -21,7 +21,7 @@ def presets_path() -> Path:
         base = Path(appdata)
     else:
         base = Path.home() / "AppData" / "Roaming"
-    return base / "miwk" / "presets.json"
+    return base / "7pce" / "presets.json"
 
 
 def load_presets() -> list[ThemePreset]:

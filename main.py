@@ -52,9 +52,7 @@ def main() -> None:
         loading.center_on_screen()
 
         def show_main() -> None:
-            effect = QtWidgets.QGraphicsOpacityEffect(window)
-            effect.setOpacity(0.0)
-            window.setGraphicsEffect(effect)
+            window.setWindowOpacity(0.0)
             window.show()
             window.showNormal()
             window.raise_()
@@ -64,12 +62,19 @@ def main() -> None:
                 | QtCore.Qt.WindowActive
             )
 
-            fade = QtCore.QPropertyAnimation(effect, b"opacity")
-            fade.setDuration(420)
-            fade.setStartValue(0.0)
-            fade.setEndValue(1.0)
-            fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)
-            fade.start(QtCore.QAbstractAnimation.DeleteWhenStopped)
+            window._startup_fade = QtCore.QPropertyAnimation(  # type: ignore[attr-defined]
+                window,
+                b"windowOpacity",
+                window,
+            )
+            window._startup_fade.setDuration(420)  # type: ignore[attr-defined]
+            window._startup_fade.setStartValue(0.0)  # type: ignore[attr-defined]
+            window._startup_fade.setEndValue(1.0)  # type: ignore[attr-defined]
+            window._startup_fade.setEasingCurve(QtCore.QEasingCurve.OutCubic)  # type: ignore[attr-defined]
+            window._startup_fade.start()  # type: ignore[attr-defined]
+
+            # Failsafe: avoid getting stuck invisible on systems where animation callbacks are flaky.
+            QtCore.QTimer.singleShot(700, lambda: window.setWindowOpacity(1.0))
 
         loading.finished.connect(show_main)
         loading.show()

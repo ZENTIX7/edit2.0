@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-APP_TITLE = "Miwk Tweaks Utility"
+APP_TITLE = "7pce Tweaks Utility"
 BACKUP_ROOT = Path("backups")
 
 
